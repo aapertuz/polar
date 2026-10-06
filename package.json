@@ -1,0 +1,31 @@
+{
+  "name": "polar",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "check:docs": "node scripts/check-docs.mjs",
+    "check": "pnpm check:docs && tsc --noEmit",
+    "check:rust": "cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check && cargo check --locked --manifest-path src-tauri/Cargo.toml",
+    "test:rust": "cargo test --locked --manifest-path src-tauri/Cargo.toml",
+    "verify": "pnpm check:docs && pnpm build && pnpm check:rust && pnpm test:rust"
+  },
+  "dependencies": {
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^6.0.2",
+    "typescript": "~6.0.3",
+    "vite": "^8.0.16",
+    "@tauri-apps/cli": "^2"
+  }
+}
