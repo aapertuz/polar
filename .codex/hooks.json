@@ -1,0 +1,29 @@
+{
+  "description": "Polar project context and documentation feedback.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/codex-hooks.mjs\"",
+            "timeout": 15,
+            "statusMessage": "Loading Polar plan context"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/scripts/codex-hooks.mjs\"",
+            "timeout": 15,
+            "statusMessage": "Checking Polar documentation"
+          }
+        ]
+      }
+    ]
+  }
+}

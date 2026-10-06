@@ -1,0 +1,42 @@
+# Project hooks
+
+## Git
+
+- `pre-commit`: `pnpm check` (documentation and both TypeScript packages).
+- `pre-push`: `pnpm verify` (checks, builds, Rust checks/tests, server tests).
+  Deletion-only pushes skip verification.
+
+Both run from the repository root and propagate failures. They check the current
+working tree, not an isolated staged or pushed commit. Partial commits and pushes
+of other revisions still need checks against those revisions; CI should run
+`pnpm verify` on the actual commit. Hooks do not stage, stash, format, or commit.
+
+Activate per checkout with `git config --local core.hooksPath .githooks` after
+checking existing hook configuration. The installer refuses to replace a different
+hook path or custom default hooks. Do not bypass failures to claim verification.
+To disable these Git hooks, unset that local key only if it still equals `.githooks`.
+
+## Codex
+
+`.codex/hooks.json` uses `scripts/codex-hooks.mjs`:
+
+- `SessionStart` on startup, resume, clear, or compact: supplies a short document
+  map and active-plan filenames. It does not load entire plans into context.
+- `Stop`: runs the dependency-free documentation checker with a ten-second limit.
+  On failure, requests one repair pass; subsequent failure becomes a warning.
+  Plan mode receives warnings only. The hook never runs a full build or claims
+  that application tests passed. Pre-existing documentation failures can surface.
+
+Requires Git, Node, and a Codex release supporting these events. The project config
+explicitly enables hooks. Open a fresh Codex session in this trusted project and
+use `/hooks` in Codex CLI to review and trust the definitions. Installation does
+not grant hook trust. Managed policy can disable project hooks. Disable these
+hooks individually through `/hooks` when needed. Existing user/plugin hooks still
+run independently; this setup does not replace them.
+
+No hook grants tool permissions, reads secrets or transcripts, sends messages,
+changes plans automatically, or runs checks after every edit. Hooks are feedback;
+AGENTS.md remains the operating policy. Full verification and desktop smoke tests
+remain the agent's responsibility.
+
+Configuration reference: [OpenAI hooks documentation](https://learn.chatgpt.com/docs/hooks).
