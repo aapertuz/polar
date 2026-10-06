@@ -1,29 +1,34 @@
 # Verification
 
-Run commands from the project root. Prerequisites are Node/pnpm, the Rust toolchain
-with rustfmt, and the platform's Tauri build prerequisites. Use
-`pnpm install --frozen-lockfile` to install frontend dependencies.
+Run commands from the repository root. Prerequisites are Node.js 22.12+, pnpm
+10.10.0, the Rust toolchain with rustfmt, and platform Tauri build prerequisites.
+Install JavaScript dependencies with `pnpm install --frozen-lockfile`. Server
+environment variables come from the shell; `.env.example` documents them, and the
+server does not load `.env` files automatically.
 
 | Command | Evidence |
 | --- | --- |
 | `pnpm check:docs` | Harness paths exist, AGENTS.md stays short, local Markdown file links resolve |
-| `pnpm check` | Documentation check plus TypeScript type checking |
-| `pnpm build` | TypeScript checking and production frontend bundle |
-| `pnpm check:rust` | Rust formatting and locked dependency compilation |
-| `pnpm test:rust` | Existing Rust tests; initially there are none |
-| `pnpm verify` | All documentation, frontend build, and Rust checks above |
-| `pnpm tauri dev` | Interactive desktop validation |
-| `pnpm tauri build` | Platform-specific packaging; use when packaging is affected |
+| `pnpm check` | Documentation check plus TypeScript checks for native and server |
+| `pnpm build` | Native production frontend and compiled server; no desktop installer |
+| `pnpm check:rust` | Rust formatting and locked dependency compilation at `native/src-tauri/Cargo.toml` |
+| `pnpm test:rust` | Rust tests using `native/src-tauri/Cargo.lock` |
+| `pnpm --filter @polar/server test` | Fastify health response and server configuration tests |
+| `pnpm verify` | Documentation, both package builds, Rust checks/tests, and server tests |
+| `pnpm dev:native` | Interactive desktop validation, including Vite and Rust command behavior |
+| `pnpm dev:server` | Fastify development server with reload |
+| `pnpm dev` | Both applications with sibling process cleanup |
+| `pnpm tauri build` | Platform-specific desktop packaging; required when packaging paths change |
 
 For documentation-only changes, `pnpm check:docs` is sufficient. For application
-changes, run `pnpm verify` and relevant behavior checks. Add regression tests for
-meaningful behavior changes. Report prerequisite failures and zero-test runs
-honestly; never silently skip a check and report full verification.
+changes, run `pnpm verify` and relevant behavior checks. Report prerequisite
+failures and zero-test runs accurately; skipped checks are not tested behavior.
 
 For native command changes, exercise success and failure through the actual
 desktop app. For UI changes, inspect the changed flow at relevant window sizes.
-Record scenarios and outcomes in the plan or final report. Browser preview alone
-does not verify Tauri commands. Generated output must not be treated as source.
+Browser preview alone does not verify Tauri commands. Generated output in
+`native/dist/`, `server/dist/`, `native/src-tauri/target/`, and
+`native/src-tauri/gen/schemas/` must not be treated as source.
 
 ## Optional pre-commit hook
 

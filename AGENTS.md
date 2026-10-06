@@ -1,15 +1,16 @@
 # Working in Polar
 
-Polar currently contains a Tauri 2 desktop scaffold with React 19, TypeScript,
-Vite, and a Rust backend. Inspect current code before assuming product behavior.
+Polar is a pnpm monorepo with a Tauri 2 desktop app and a Fastify server. Inspect current code before assuming product behavior.
 
 ## Map
 
-- `src/`: React UI; `src/App.tsx` currently calls the Rust `greet` command.
-- `public/`: static assets served by Vite.
-- `src-tauri/src/`: native application and command handlers.
-- `src-tauri/tauri.conf.json`: desktop configuration and build integration.
-- `src-tauri/capabilities/`: native permission scopes.
+- `native/`: Tauri 2 desktop application with React 19, TypeScript, and Vite.
+- `native/src/`: React UI; `native/src/App.tsx` currently calls the Rust `greet` command.
+- `native/src-tauri/src/`: native application and command handlers.
+- `native/src-tauri/tauri.conf.json`: desktop configuration and build integration.
+- `native/src-tauri/capabilities/`: native permission scopes.
+- `server/`: TypeScript Fastify application; `server/src/app.ts` configures the server.
+- `pnpm-workspace.yaml`: the `@polar/native` and `@polar/server` workspace packages.
 - [Documentation index](docs/README.md): project knowledge and workflow entry points.
 - [Execution plans](docs/PLANS.md): when to plan and how to resume work.
 - [Verification](docs/VERIFICATION.md): commands, limitations, and optional hooks.
@@ -29,8 +30,8 @@ explicitly requested. Missing docs are unknowns, not permission to invent requir
    change spec before implementation. Ask only about decisions that block progress.
 4. Keep plans current with decisions, progress, and evidence. Promote durable
    knowledge into docs; archive completed plans after acceptance criteria are met.
-5. Use pnpm and preserve `pnpm-lock.yaml` and `src-tauri/Cargo.lock`. Do not edit
-   generated output in `dist/`, `src-tauri/target/`, or `src-tauri/gen/schemas/`.
+5. Use pnpm and preserve `pnpm-lock.yaml` and `native/src-tauri/Cargo.lock`. Do not edit
+   generated output in `native/dist/`, `native/src-tauri/target/`, or `native/src-tauri/gen/schemas/`.
 6. Validate inputs at native command boundaries; keep native permissions narrow.
    Check both callers and handlers when changing the frontend/native contract.
 7. Run checks appropriate to the change. For code changes, use `pnpm verify`;
@@ -42,9 +43,11 @@ explicitly requested. Missing docs are unknowns, not permission to invent requir
 
 ## Quick commands
 
-- `pnpm tauri dev`: desktop development, including the Vite server.
-- `pnpm dev`: browser-only UI development; native commands need Tauri.
-- `pnpm check`: documentation integrity and TypeScript checking.
-- `pnpm verify`: documentation, frontend build, Rust format/check/tests.
+- `pnpm dev:native`: desktop development, including its Vite server.
+- `pnpm dev:server`: Fastify development server with reload.
+- `pnpm dev`: launch both applications with coordinated shutdown.
+- `pnpm tauri dev` / `pnpm tauri build`: run Tauri CLI commands from `native/`.
+- `pnpm check`: documentation and both package TypeScript checks.
+- `pnpm verify`: documentation, both builds, Rust format/check/tests, and server tests.
 
 Keep this file a concise map. Put detailed procedures in linked documents.
