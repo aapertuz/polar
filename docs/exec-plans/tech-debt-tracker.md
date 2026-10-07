@@ -4,7 +4,8 @@ Record concrete gaps with impact and a next action; remove or link resolved item
 
 | Gap | Impact | Next action |
 | --- | --- | --- |
-| No application tests in the initial scaffold | Builds cannot establish behavior | Add focused regression tests with the first behavior changes; choose frontend test tooling when needed |
-| No desktop smoke-test automation | Native interactions require manual verification | Record a repeatable scenario when the first real desktop flow exists |
+| No automated UI gesture/focus coverage | Pure helper checks cannot establish native pointer tracking or focus behavior | Use the documented desktop smoke review; add an integration harness when real desktop flows grow |
+| No desktop smoke-test automation | Native interactions require manual verification | Follow the homescreen smoke review in [Verification](../VERIFICATION.md); automate native scenarios when tooling is selected |
+| Architecture contains an obsolete `features/home/` migration note | The completed UI migration is not reflected in the owner-maintained reference | Owner: remove the final historical note in “React folder organization”; current implementation uses `pages/home/` and domain feature folders |
 
-These are baseline observations, not blockers for documentation-only work.
+The homescreen UI is verified manually and through focused geometry, motion-policy, and import-boundary checks. These follow-ups do not block its presentation-only scope.
