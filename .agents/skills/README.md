@@ -9,7 +9,10 @@ Use `.agents/skills/<procedure-name>/SKILL.md`, with YAML frontmatter containing
 Document prerequisites, concrete steps, expected evidence, and recovery from known
 failures. Keep supporting scripts beside the skill and link them explicitly.
 
-Start with no custom skills: this scaffold has no established specialized
-procedure yet. Add one after learning from real work, such as a repeatable native
-release or desktop regression investigation. Validate its instructions against
-the current repository before relying on it.
+Available local skills:
+
+* [Contextual commits](contextual-commits/SKILL.md): group requested changes by
+  intent and create Conventional Commits.
+
+Add further skills after learning from repeated specialized work. Validate their
+instructions against the current repository before relying on them.
