@@ -5,7 +5,7 @@ export interface Mission {
   outcome: string;
   progress: number;
   deadline: string;
-  days: number;
+  deadlineAt?: string;
   units: { received: number; target: number; label: string };
   actionCount: number;
   assessment: string;

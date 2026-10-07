@@ -1,3 +1,4 @@
+import { useMissionCountdown } from "@/features/missions/hooks/useMissionCountdown";
 import { Icon } from "@/components/ui/Icon";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import type { Mission } from "@/features/missions/types/mission.types";
@@ -10,6 +11,7 @@ export function MissionCard({
   selected: boolean;
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
+  const countdown = useMissionCountdown(mission.deadlineAt);
   return (
     <button
       className={`mission-card ${selected ? "selected" : ""}`}
@@ -27,7 +29,11 @@ export function MissionCard({
         <Icon name="calendar" size={16} />
         {mission.deadline}
         <span>·</span>
-        {mission.days} days left
+        {countdown
+          ? countdown.expired
+            ? "Deadline reached"
+            : `${countdown.days} days left`
+          : "No deadline"}
       </span>
     </button>
   );

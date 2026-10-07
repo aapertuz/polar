@@ -1,13 +1,20 @@
 import { Icon } from "@/components/ui/Icon";
-import { SAMPLE_COUNTDOWN } from "@/features/missions/constants/mission.constants";
+import { useMissionCountdown } from "@/features/missions/hooks/useMissionCountdown";
 import type { Mission } from "@/features/missions/types/mission.types";
 export function MissionHero({ mission }: { mission: Mission }) {
+  const countdown = useMissionCountdown(mission.deadlineAt);
   return (
     <div className="mission-hero">
       <div
         className="deadline-display"
         role="img"
-        aria-label={`Sample countdown: ${mission.days} days, zero hours, ${SAMPLE_COUNTDOWN.minutes} minutes`}
+        aria-label={
+          countdown
+            ? countdown.expired
+              ? "Deadline reached"
+              : `${countdown.days} days, ${countdown.hours} hours, ${countdown.minutes} minutes remaining`
+            : "No deadline set"
+        }
       >
         <div className="countdown-labels">
           <span>DAYS</span>
@@ -15,11 +22,11 @@ export function MissionHero({ mission }: { mission: Mission }) {
           <span>MINUTES</span>
         </div>
         <div className="countdown-digits" aria-hidden="true">
-          <span>{mission.days}</span>
+          <span>{countdown ? String(countdown.days).padStart(2, "0") : "—"}</span>
           <b>:</b>
-          <span>{SAMPLE_COUNTDOWN.hours}</span>
+          <span>{countdown ? String(countdown.hours).padStart(2, "0") : "—"}</span>
           <b>:</b>
-          <span>{SAMPLE_COUNTDOWN.minutes}</span>
+          <span>{countdown ? String(countdown.minutes).padStart(2, "0") : "—"}</span>
         </div>
       </div>
       <div className="mission-outcome">
@@ -30,7 +37,10 @@ export function MissionHero({ mission }: { mission: Mission }) {
         <span className="mission-deadline-copy">
           <span>Deadline</span>
           <span aria-hidden="true">·</span>
-          <time>{mission.deadline}</time>
+          <time dateTime={mission.deadlineAt}>
+            {countdown?.expired ? "Deadline reached · " : ""}
+            {mission.deadline}
+          </time>
         </span>
       </div>
     </div>

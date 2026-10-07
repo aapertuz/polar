@@ -7,7 +7,7 @@ export const missions: Mission[] = [
     outcome: "Run a successful pilot at We Are One with 300 attendees.",
     progress: 60,
     deadline: "Nov 20, 2026",
-    days: 16,
+    deadlineAt: "2026-11-20T00:00:00Z",
     units: { received: 287, target: 300, label: "attendees received" },
     actionCount: 12,
     assessment:
@@ -137,7 +137,7 @@ export const missions: Mission[] = [
     outcome: "Close 3 paying event organizers.",
     progress: 33,
     deadline: "Nov 30, 2026",
-    days: 26,
+    deadlineAt: "2026-11-30T00:00:00Z",
     units: { received: 1, target: 3, label: "organizers signed" },
     actionCount: 7,
     assessment:
@@ -218,7 +218,7 @@ export const missions: Mission[] = [
     outcome: "Make the organizer workflow production ready.",
     progress: 70,
     deadline: "Nov 30, 2026",
-    days: 26,
+    deadlineAt: "2026-11-30T00:00:00Z",
     units: { received: 7, target: 10, label: "flows validated" },
     actionCount: 9,
     assessment:
