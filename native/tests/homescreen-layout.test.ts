@@ -37,3 +37,33 @@ test("countdown separators align on center and the system island has square corn
   assert.match(styles, /\.system-island\s*\{[^}]*border-radius:\s*16px/s);
   assert.equal(/\.system-island\s*\{[^}]*border-radius:\s*9999px/s.test(styles), false);
 });
+
+test("empty default keeps desktop composition and opens Quick AI", () => {
+  const home = read("pages/home/HomeScreen.tsx");
+  const model = read("pages/home/hooks/useHomeScreen.ts");
+  for (const component of [
+    "MissionSwitcher",
+    "HomeMissionWindow",
+    "HomeTimelineWindow",
+    "QuickAiSurface",
+  ]) {
+    assert.match(home, new RegExp(`<${component}\\b`));
+  }
+  assert.match(home, /className="desktop-art"/);
+  assert.match(model, /initialIntent: "new-mission"/);
+  assert.doesNotMatch(model, /fixtures/);
+  assert.match(home, /mission \? <HomeMissionWindow model=\{model\} \/> : <EmptyWorkspace \/>/);
+});
+
+test("island keeps the Polar mark and balances people left of the clock", () => {
+  const island = read("components/desktop/components/SystemIsland.tsx");
+  assert.match(island, /<PolarMark/);
+  assert.ok(
+    island.indexOf('aria-label="Mission people"') < island.indexOf('className="island-clock"'),
+  );
+  assert.ok(
+    island.indexOf('className="island-clock"') <
+      island.indexOf('className="island-button notification-button"'),
+  );
+  assert.match(read("features/quick-ai/components/QuickAiSurface.tsx"), /quick-ai\.css/);
+});

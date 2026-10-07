@@ -1,5 +1,6 @@
-import { missions } from "@/features/missions/fixtures/missions.fixtures";
+import type { Mission } from "@/features/missions/types/mission.types";
 export function useMissionSwitcher(
+  missions: Mission[],
   selected: string,
   select: (id: string, instant?: boolean) => void,
   openQuickAi: (trigger?: HTMLElement) => void,

@@ -9,7 +9,7 @@ type QuickAiModel = ReturnType<typeof useQuickAi>;
 
 export function useQuickAiSurface(
   close: () => void,
-  mission: QuickAiMissionSummary,
+  mission: QuickAiMissionSummary | null,
   session: QuickAiSession,
   model: QuickAiModel,
 ) {
@@ -101,6 +101,7 @@ export function useQuickAiSurface(
     [model, session.intent],
   );
   const handleMissionContext = useCallback(() => {
+    if (!mission) return;
     model.addContext({ id: mission.id, label: mission.name, kind: "mission" });
     const picker = surfaceRef.current?.querySelector<HTMLDetailsElement>(
       "[data-quick-ai-picker][open]",
@@ -109,13 +110,13 @@ export function useQuickAiSurface(
       picker.open = false;
       picker.querySelector<HTMLElement>("summary")?.focus();
     }
-  }, [mission.id, mission.name, model]);
+  }, [mission, model]);
   const handleEvidenceSelection = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
-      const evidence = mission.evidence.find(
+      const evidence = mission?.evidence.find(
         (item) => item.title === event.currentTarget.dataset.title,
       );
-      if (evidence) {
+      if (evidence && mission) {
         model.addContext({
           id: `${mission.id}:evidence:${evidence.title}`,
           label: evidence.title,
@@ -128,7 +129,7 @@ export function useQuickAiSurface(
         picker.querySelector<HTMLElement>("summary")?.focus();
       }
     },
-    [mission.evidence, mission.id, model],
+    [mission, model],
   );
   const handleRemoveContext = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {

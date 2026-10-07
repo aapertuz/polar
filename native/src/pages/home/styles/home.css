@@ -1669,3 +1669,38 @@
 .timeline-toggle {
   z-index: 40;
 }
+
+.workspace-empty-message {
+  height: min(724px, calc(100% - 14px));
+  margin-top: 14px;
+  color: var(--ink);
+  flex: 1;
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  padding: 32px;
+}
+.workspace-empty-message h1 {
+  font: 500 clamp(24px, 3vw, 40px)/1.15 var(--mono);
+  letter-spacing: -0.025em;
+}
+.workspace-empty-message p {
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.empty-mission-list,
+.empty-timeline-message {
+  color: var(--secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.empty-mission-list {
+  padding: 16px 8px;
+}
+.empty-timeline-message {
+  margin-top: 16px;
+}

@@ -22,6 +22,9 @@ export function TimelineWindow({
     <div className="timeline-scroll">
       <section className="up-next">
         <h2>Up next</h2>
+        {upcomingItems.length === 0 && (
+          <p className="empty-timeline-message">No upcoming actions.</p>
+        )}
         <ol>
           {upcomingItems.map((item, index) => (
             <UpcomingTimelineItem
@@ -36,11 +39,14 @@ export function TimelineWindow({
       <section className="recent-activity">
         <div className="section-heading">
           <h2>Recent activity</h2>
-          <button className="text-button" onClick={toggleExpanded} aria-expanded={expanded}>
-            {expanded ? "Show less" : "View all"}
-            <Icon name="arrow" size={16} />
-          </button>
+          {timeline.activity.length > 0 && (
+            <button className="text-button" onClick={toggleExpanded} aria-expanded={expanded}>
+              {expanded ? "Show less" : "View all"}
+              <Icon name="arrow" size={16} />
+            </button>
+          )}
         </div>
+        {visibleActivity.length === 0 && <p className="empty-timeline-message">No activity yet.</p>}
         <ul>
           {visibleActivity.map((item, index) => (
             <ActivityTimelineItem

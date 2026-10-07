@@ -12,7 +12,7 @@ import "@/features/quick-ai/styles/quick-ai.css";
 type QuickAiModel = ReturnType<typeof useQuickAi>;
 
 interface Props {
-  mission: QuickAiMissionSummary;
+  mission: QuickAiMissionSummary | null;
   session: QuickAiSession;
   model: QuickAiModel;
 }
@@ -69,7 +69,9 @@ export function QuickAiSurface({ mission, session, model }: Props) {
               <div>
                 <span className="quick-ai-eyebrow">POLAR / QUICK AI</span>
                 <h2 id="quick-ai-title">
-                  {session.intent === "command" ? mission.name : "New mission"}
+                  {session.intent === "command"
+                    ? (mission?.name ?? "Quick command")
+                    : "New mission"}
                 </h2>
               </div>
             </div>
@@ -172,9 +174,13 @@ export function QuickAiSurface({ mission, session, model }: Props) {
                 </summary>
                 <div className="quick-ai-picker-menu">
                   <span>Mission context</span>
-                  <button type="button" onClick={handleMissionContext}>
-                    {mission.name}
-                  </button>
+                  {mission ? (
+                    <button type="button" onClick={handleMissionContext}>
+                      {mission.name}
+                    </button>
+                  ) : (
+                    <p className="quick-ai-no-context">No missions yet.</p>
+                  )}
                 </div>
               </details>
               <label className="quick-ai-action-button quick-ai-attach">
@@ -191,8 +197,11 @@ export function QuickAiSurface({ mission, session, model }: Props) {
                   <Icon name="file" size={15} /> Sources
                 </summary>
                 <div className="quick-ai-picker-menu">
-                  <span>{mission.name} sources</span>
-                  {mission.evidence.map((evidence) => (
+                  <span>{mission?.name ?? "Workspace"} sources</span>
+                  {!mission?.evidence.length && (
+                    <p className="quick-ai-no-context">No sources yet.</p>
+                  )}
+                  {mission?.evidence.map((evidence) => (
                     <button
                       key={evidence.title}
                       type="button"

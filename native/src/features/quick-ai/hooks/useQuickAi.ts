@@ -16,12 +16,16 @@ import type {
 import type { QuickAiMissionSummary } from "@/features/quick-ai/types/quick-ai.types";
 
 interface Options {
-  mission: QuickAiMissionSummary;
+  mission: QuickAiMissionSummary | null;
+  initialIntent?: QuickAiIntent;
   closeOverlays: () => void;
 }
 
-export function useQuickAi({ mission, closeOverlays }: Options) {
-  const [session, setSession] = useState(createQuickAiSession);
+export function useQuickAi({ mission, closeOverlays, initialIntent }: Options) {
+  const [session, setSession] = useState(() => {
+    const session = createQuickAiSession();
+    return initialIntent ? openQuickAiSession(session, initialIntent) : session;
+  });
   const sessionRef = useRef(session);
   sessionRef.current = session;
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -38,7 +42,7 @@ export function useQuickAi({ mission, closeOverlays }: Options) {
         openQuickAiSession(
           current,
           intent,
-          intent === "command"
+          intent === "command" && activeMission.current
             ? { id: activeMission.current.id, label: activeMission.current.name, kind: "mission" }
             : undefined,
         ),
@@ -52,6 +56,7 @@ export function useQuickAi({ mission, closeOverlays }: Options) {
     requestAnimationFrame(() => {
       const trigger = triggerRef.current;
       if (trigger?.isConnected) trigger.focus();
+      else document.querySelector<HTMLButtonElement>(".island-mark-button")?.focus();
     });
   }, []);
   const updateDraft = useCallback((text: string) => {
@@ -69,6 +74,10 @@ export function useQuickAi({ mission, closeOverlays }: Options) {
   const applyPreview = useCallback(() => {
     setSession((current) => applyQuickAiPreview(current));
   }, []);
+
+  useEffect(() => {
+    if (session.opened) requestAnimationFrame(focusInput);
+  }, [session.opened, focusInput]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {

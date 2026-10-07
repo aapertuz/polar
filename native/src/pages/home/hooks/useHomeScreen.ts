@@ -1,3 +1,4 @@
+import type { Mission } from "@/features/missions/types/mission.types";
 import { useCallback, useRef } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { useDesktopWindows } from "@/components/desktop/hooks/useDesktopWindows";
@@ -7,20 +8,27 @@ import { useHomeTimeline } from "@/pages/home/hooks/useHomeTimeline";
 import { useMissionSelection } from "@/pages/home/hooks/useMissionSelection";
 import { useHomeOverlay } from "@/pages/home/hooks/useHomeOverlay";
 import { useQuickAi } from "@/features/quick-ai/hooks/useQuickAi";
+const missions: Mission[] = [];
 export function useHomeScreen() {
   const desktopCanvas = useRef<HTMLElement>(null);
   const timelineTrigger = useRef<HTMLButtonElement>(null);
   const windows = useDesktopWindows();
   const desktop = useMediaQuery(DESKTOP_QUERY);
   const timeline = useHomeTimeline(desktop);
-  const selection = useMissionSelection(timeline.resetExpanded);
+  const selection = useMissionSelection(timeline.resetExpanded, missions);
   const overlay = useHomeOverlay();
-  const quickAiMission = {
-    id: selection.mission.id,
-    name: selection.mission.name,
-    evidence: selection.mission.evidence.map(({ title }) => ({ title })),
-  };
-  const quickAi = useQuickAi({ mission: quickAiMission, closeOverlays: overlay.close });
+  const quickAiMission = selection.mission
+    ? {
+        id: selection.mission.id,
+        name: selection.mission.name,
+        evidence: selection.mission.evidence.map(({ title }) => ({ title })),
+      }
+    : null;
+  const quickAi = useQuickAi({
+    mission: quickAiMission,
+    closeOverlays: overlay.close,
+    initialIntent: "new-mission",
+  });
   const openQuickAiCommand = useCallback(
     (trigger?: HTMLElement) => quickAi.openQuickAi("command", trigger),
     [quickAi.openQuickAi],
@@ -32,6 +40,7 @@ export function useHomeScreen() {
   const focusMission = () => windows.focus("mission");
   const focusTimeline = () => windows.focus("timeline");
   return {
+    missions,
     ...selection,
     ...timeline,
     ...overlay,

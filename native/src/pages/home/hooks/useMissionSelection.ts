@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { missions } from "@/features/missions/fixtures/missions.fixtures";
+
 import { HOME_DEFAULTS } from "@/pages/home/constants/home.constants";
-import type { MissionTab } from "@/features/missions/types/mission.types";
-export function useMissionSelection(resetExpanded: () => void) {
-  const [selected, setSelected] = useState<string>(HOME_DEFAULTS.selected);
+import type { Mission, MissionTab } from "@/features/missions/types/mission.types";
+export function useMissionSelection(resetExpanded: () => void, missions: Mission[]) {
+  const [selected, setSelected] = useState<string>(missions[0]?.id ?? "");
   const [tab, setTab] = useState<MissionTab>(HOME_DEFAULTS.tab);
   const [instant, setInstant] = useState(HOME_DEFAULTS.instant);
-  const mission = missions.find((item) => item.id === selected) ?? missions[0];
+  const mission = missions.find((item) => item.id === selected) ?? missions[0] ?? null;
   const select = (id: string, immediate = false) => {
     if (!missions.some((item) => item.id === id)) return;
     setSelected(id);

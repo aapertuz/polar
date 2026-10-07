@@ -147,7 +147,7 @@ export function ChatgptConnection() {
         </>
       )}
       <p className="provider-detail">
-        This connection enables provider access. Quick AI still uses the sample preview.
+        This connection enables provider access. Mission creation is not available yet.
       </p>
     </section>
   );

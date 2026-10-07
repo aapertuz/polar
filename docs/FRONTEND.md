@@ -1,6 +1,6 @@
 # Frontend conventions
 
-These conventions apply to application source under `native/src/`. Keep the fixture driven homescreen and its preview behavior intact unless a product change explicitly says otherwise.
+These conventions apply to application source under `native/src/`. The default homescreen preserves the desktop composition with an empty mission switcher, centered canvas message and empty timeline and Quick AI open initially. Fixture-based content has no runtime demo entry point. Keep sample data out of the mounted default state.
 
 ## Imports
 

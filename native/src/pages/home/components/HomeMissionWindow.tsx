@@ -14,6 +14,7 @@ export function HomeMissionWindow({ model }: { model: HomeScreenModel }) {
     windows,
     focusMission,
   } = model;
+  if (!mission) return null;
   return (
     <DesktopWindow
       id="mission"

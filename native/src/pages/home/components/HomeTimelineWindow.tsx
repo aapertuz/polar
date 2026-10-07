@@ -1,5 +1,6 @@
 import { DesktopWindow } from "@/components/desktop/components/DesktopWindow";
 import { TimelineWindow } from "@/features/attention/components/TimelineWindow";
+import { EMPTY_TIMELINE } from "@/pages/home/constants/home.constants";
 import { TimelineWindowActions } from "@/pages/home/components/TimelineWindowActions";
 import type { HomeScreenModel } from "@/pages/home/hooks/useHomeScreen";
 export function HomeTimelineWindow({ model }: { model: HomeScreenModel }) {
@@ -33,7 +34,7 @@ export function HomeTimelineWindow({ model }: { model: HomeScreenModel }) {
       restoreFocusTo={timelineTrigger}
     >
       <TimelineWindow
-        timeline={mission}
+        timeline={mission ?? EMPTY_TIMELINE}
         expanded={expanded}
         toggleExpanded={toggleExpanded}
         open={open}

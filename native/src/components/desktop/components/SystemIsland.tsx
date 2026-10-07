@@ -7,10 +7,11 @@ interface Props {
   open: (request: OverlayRequest) => void;
   openQuickAi: (trigger?: HTMLElement) => void;
   quickAiOpen: boolean;
+  demo?: boolean;
 }
 
-export function SystemIsland({ open, openQuickAi, quickAiOpen }: Props) {
-  const { handleQuickAi, openNotifications, openPeople, openLauncher } = useSystemIsland(
+export function SystemIsland({ open, openQuickAi, quickAiOpen, demo = false }: Props) {
+  const { time, handleQuickAi, openNotifications, openPeople, openLauncher } = useSystemIsland(
     open,
     openQuickAi,
   );
@@ -31,23 +32,6 @@ export function SystemIsland({ open, openQuickAi, quickAiOpen }: Props) {
           <PolarMark size={19} />
         </span>
       </button>
-      <span className="sample-weather" aria-label="Sample weather: sunny, 28 degrees">
-        <Icon name="sun" size={19} />
-        28°
-      </span>
-      <span className="island-clock" aria-label="Sample time: 15:24">
-        15:24
-      </span>
-      <button
-        className="island-button notification-button"
-        aria-label="Notifications, 1 needs attention"
-        title="Notifications"
-        onClick={openNotifications}
-        disabled={quickAiOpen}
-      >
-        <Icon name="bell" size={18} />
-        <span className="notification-count">1</span>
-      </button>
       <button
         className="island-button"
         aria-label="Mission people"
@@ -56,7 +40,20 @@ export function SystemIsland({ open, openQuickAi, quickAiOpen }: Props) {
         disabled={quickAiOpen}
       >
         <Icon name="people" size={18} />
-        <span>2</span>
+        <span>{demo ? 2 : 0}</span>
+      </button>
+      <span className="island-clock" aria-label={`Current time: ${time}`}>
+        {time}
+      </span>
+      <button
+        className="island-button notification-button"
+        aria-label={demo ? "Sample notifications, 1 needs attention" : "Notifications, none"}
+        title="Notifications"
+        onClick={openNotifications}
+        disabled={quickAiOpen}
+      >
+        <Icon name="bell" size={18} />
+        {demo && <span className="notification-count">1</span>}
       </button>
       <button
         className="island-button"

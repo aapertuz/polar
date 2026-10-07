@@ -1,5 +1,5 @@
 import { Icon } from "@/components/ui/Icon";
-import { SAMPLE_CALENDAR } from "@/pages/home/fixtures/home-preview.fixtures";
+import { useTimelineWindowActions } from "@/pages/home/hooks/useTimelineWindowActions";
 import type { OverlayRequest } from "@/components/ui/overlay.types";
 export function TimelineWindowActions({
   desktop,
@@ -10,14 +10,13 @@ export function TimelineWindowActions({
   close: () => void;
   open: (request: OverlayRequest) => void;
 }) {
-  const openCalendar = (event: React.MouseEvent<HTMLButtonElement>) =>
-    open({ kind: "calendar", anchor: event.currentTarget, instant: event.detail === 0 });
+  const { date, openCalendar } = useTimelineWindowActions(open);
   return (
     <>
-      <span className="timeline-date">{SAMPLE_CALENDAR.date}</span>
+      <span className="timeline-date">{date}</span>
       <button
         className="icon-button"
-        aria-label="Open sample calendar"
+        aria-label="Open calendar"
         title="Calendar"
         onClick={openCalendar}
       >

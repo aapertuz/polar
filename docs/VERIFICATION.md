@@ -38,15 +38,14 @@ Browser preview alone does not verify Tauri commands. Generated output in
 
 ## Homescreen desktop smoke review
 
-Run `pnpm dev:native`. The homescreen uses immutable sample data and ephemeral UI state.
+Run `pnpm dev:native`.
 
-1. Check the default F1 Pilot view, then select US Sales and Product. Confirm title, facts, tabs, context, and timeline change together.
-2. Drag mission and timeline by their headers, overlap them, and move partly offscreen. Resize to 800×600 and back; confirm the headers remain reachable. Use Move window with arrow keys, Shift for precision, and Escape to cancel; use Window controls → Reset layout.
-3. Open each rail/island preview, the proposal preview, calendar, and timeline details. Check Escape/outside dismissal and focus return. Search should focus its input. Tab navigation and compact timeline must keep keyboard focus within their open surface.
-4. Inspect 1672×941, 1440×900, 1280×800, 1024×768, 800×600, and a narrow single-column layout. Internal scrolling should reveal content without horizontal page overflow.
-5. With permission, temporarily enable macOS Accessibility → Motion → Reduce motion. Exercise tabs and previews, then restore the original setting. Policy tests additionally check that spatial reveals and scaling are removed.
+1. Confirm the default workspace has zero missions, no sample weather or notifications, and the centered message on the canvas and empty timeline in the existing desktop layout. No dark mission window should appear until a mission exists. Quick AI should open with the input focused. Close it with Escape and confirm focus returns to the island mark. The island clock should match the device's local time and advance across a minute boundary.
+2. Open notifications and people; confirm empty messages. Open the launcher and Settings. Check Escape/outside dismissal and focus return. Reopen Quick AI from the island or New mission button. Context and Sources must not offer sample missions. AI responses still use the existing simulated preview; no mission persistence is implemented.
+3. Inspect a large window, 800×600, and a narrow layout. Confirm content remains reachable without horizontal overflow.
+4. Deadline calculations are covered by `native/tests/countdown.test.ts`: timestamp offsets, day/minute rollover, elapsed time after sleep, expiry, and absent/invalid deadlines. There is no deadline on the empty workspace. Mission components and fixtures remain in source for future data wiring; no runtime demo is available.
 
-These manual scenarios do not establish backend behavior or automated pointer-gesture coverage. No application packaging changed, so the homescreen change does not require `pnpm tauri build`.
+Browser preview verifies frontend behavior only. It does not verify native provider commands. No packaging paths changed, so this change does not require `pnpm tauri build`.
 
 ## Provider connection smoke review
 
@@ -72,7 +71,7 @@ a second Vite server.
    session; do not manufacture credentials in plaintext to force this scenario.
 6. Cancel a test, then disconnect. Verify local tokens remain cleared even if
    remote revocation cannot be confirmed, and reconnect uses the same saved
-   registration. Quick AI should still show its sample preview.
+   registration. The empty workspace should remain available after disconnecting.
 
 Protocol unit tests supplement these scenarios. Report live scenarios that were
 not performed; opening the browser alone does not prove subscription access.

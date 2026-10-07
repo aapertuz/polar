@@ -1,18 +1,5 @@
-import type { OverlayRequest } from "@/components/ui/overlay.types";
-import type { Mission } from "@/features/missions/types/mission.types";
 import { ChatgptConnection } from "@/features/providers/components/ChatgptConnection";
-interface Props {
-  request: OverlayRequest;
-  mission: Mission;
-  close: () => void;
-  select: (id: string, instant?: boolean) => void;
-  reset: () => void;
-  timelineVisible: boolean;
-  toggleTimeline: () => void;
-  open: (request: OverlayRequest) => void;
-  choose: (id: string) => void;
-}
-export function SettingsOverlay(_props: Props) {
+export function SettingsOverlay() {
   return (
     <>
       <ChatgptConnection />
