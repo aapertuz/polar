@@ -5,7 +5,6 @@ export type OverlayKind =
   | "settings"
   | "notifications"
   | "people"
-  | "create"
   | "proposal"
   | "calendar"
   | "detail"

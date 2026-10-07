@@ -1,19 +1,18 @@
 import { Icon } from "@/components/ui/Icon";
 import { useMissionSwitcher } from "@/features/missions/hooks/useMissionSwitcher";
 import { MissionCard } from "@/features/missions/components/MissionCard";
-import type { OverlayRequest } from "@/components/ui/overlay.types";
 
 export function MissionSwitcher({
   selected,
   select,
-  open,
+  openQuickAi,
 }: {
   selected: string;
   select: (id: string, instant?: boolean) => void;
-  open: (request: OverlayRequest) => void;
+  openQuickAi: (trigger?: HTMLElement) => void;
 }) {
   const { missions, handleAddMission, handleMissionClick, handleCompactSelect } =
-    useMissionSwitcher(selected, select, open);
+    useMissionSwitcher(selected, select, openQuickAi);
   return (
     <aside className="mission-switcher" aria-label="Missions">
       <div className="switcher-heading">
@@ -22,8 +21,8 @@ export function MissionSwitcher({
         </h2>
         <button
           className="icon-button"
-          aria-label="Add mission"
-          title="Add mission"
+          aria-label="New mission"
+          title="New mission"
           onClick={handleAddMission}
         >
           <Icon name="plus" />

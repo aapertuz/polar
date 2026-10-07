@@ -8,7 +8,6 @@ import { DocumentsOverlay } from "@/pages/home/components/overlays/DocumentsOver
 import { SettingsOverlay } from "@/pages/home/components/overlays/SettingsOverlay";
 import { NotificationsOverlay } from "@/pages/home/components/overlays/NotificationsOverlay";
 import { PeopleOverlay } from "@/pages/home/components/overlays/PeopleOverlay";
-import { CreateOverlay } from "@/pages/home/components/overlays/CreateOverlay";
 import { ProposalOverlay } from "@/pages/home/components/overlays/ProposalOverlay";
 import { CalendarOverlay } from "@/pages/home/components/overlays/CalendarOverlay";
 import { DetailOverlay } from "@/pages/home/components/overlays/DetailOverlay";
@@ -29,7 +28,6 @@ export const overlayRegistry: Record<OverlayKind, OverlayDefinition> = {
     surface: "popover",
   },
   people: { Component: PeopleOverlay, title: "Mission people", surface: "popover" },
-  create: { Component: CreateOverlay, title: "Create a mission", surface: "dialog" },
   proposal: { Component: ProposalOverlay, title: "Preview plan adjustment", surface: "dialog" },
   calendar: { Component: CalendarOverlay, title: SAMPLE_CALENDAR.title, surface: "popover" },
   detail: { Component: DetailOverlay, title: "Details", surface: "popover" },

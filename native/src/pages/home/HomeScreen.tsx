@@ -1,10 +1,11 @@
-import { MotionConfig } from "motion/react";
+import { AnimatePresence, MotionConfig } from "motion/react";
 import { Icon } from "@/components/ui/Icon";
 import { SystemIsland } from "@/components/desktop/components/SystemIsland";
 import { MissionSwitcher } from "@/features/missions/components/MissionSwitcher";
 import { HomeMissionWindow } from "@/pages/home/components/HomeMissionWindow";
 import { HomeTimelineWindow } from "@/pages/home/components/HomeTimelineWindow";
 import { HomeOverlays } from "@/pages/home/components/HomeOverlays";
+import { QuickAiSurface } from "@/features/quick-ai/components/QuickAiSurface";
 import { useHomeScreen } from "@/pages/home/hooks/useHomeScreen";
 import { HOME_MOTION } from "@/pages/home/constants/home.constants";
 import "@/pages/home/styles/home.css";
@@ -24,6 +25,10 @@ export function HomeScreen() {
     toggleTimeline,
     overlay,
     close,
+    quickAi,
+    quickAiMission,
+    openQuickAiCommand,
+    openQuickAiNewMission,
   } = model;
   return (
     <MotionConfig reducedMotion="user" transition={HOME_MOTION}>
@@ -35,9 +40,17 @@ export function HomeScreen() {
           <span className="crosshair crosshair-top" />
           <span className="crosshair crosshair-bottom" />
         </div>
-        <SystemIsland open={open} />
+        <SystemIsland
+          open={open}
+          openQuickAi={openQuickAiCommand}
+          quickAiOpen={quickAi.session.opened}
+        />
         <div className="desktop-layout">
-          <MissionSwitcher selected={selected} select={select} open={open} />
+          <MissionSwitcher
+            selected={selected}
+            select={select}
+            openQuickAi={openQuickAiNewMission}
+          />
           <div
             className={`desktop-workspace ${desktop && !timelineVisible ? "timeline-hidden" : ""}`}
           >
@@ -79,6 +92,11 @@ export function HomeScreen() {
             open={open}
           />
         )}
+        <AnimatePresence>
+          {quickAi.session.opened && (
+            <QuickAiSurface mission={quickAiMission} session={quickAi.session} model={quickAi} />
+          )}
+        </AnimatePresence>
       </main>
     </MotionConfig>
   );

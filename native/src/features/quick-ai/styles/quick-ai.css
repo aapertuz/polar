@@ -1,0 +1,415 @@
+.quick-ai-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  color: var(--text-dark);
+  font-family: var(--sans);
+}
+.quick-ai-dimmer {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 39%);
+}
+.system-island.quick-ai-island-open {
+  z-index: 80;
+  border-color: #333;
+  box-shadow: 0 8px 24px #0008;
+}
+.island-mark-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 34px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+}
+.island-mark-button:focus-visible,
+.quick-ai-surface button:focus-visible,
+.quick-ai-surface summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.quick-ai-surface {
+  position: relative;
+  z-index: 2;
+  width: min(680px, calc(100vw - 48px));
+  max-height: calc(100dvh - 104px);
+  margin-top: 80px;
+  overflow: hidden;
+  padding: 0;
+  background: var(--window);
+  border: 1px solid #292929;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px #0006;
+}
+.quick-ai-content {
+  max-height: inherit;
+  overflow: auto;
+  padding: 20px 24px 16px;
+}
+.quick-ai-heading,
+.quick-ai-brand,
+.quick-ai-heading-actions,
+.quick-ai-composer-footer,
+.quick-ai-context-row,
+.quick-ai-actions,
+.quick-ai-picker-group {
+  display: flex;
+  align-items: center;
+}
+.quick-ai-heading {
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+.quick-ai-brand {
+  gap: 12px;
+  min-width: 0;
+}
+.quick-ai-eyebrow,
+.quick-ai-section-label,
+.quick-ai-result-status {
+  color: #858581;
+  font: 500 10px/1.4 var(--mono);
+  letter-spacing: 0.09em;
+}
+.quick-ai-brand h2 {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #f4f4f0;
+  font: 450 15px/1.35 var(--sans);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.quick-ai-heading-actions {
+  gap: 8px;
+}
+.quick-ai-close,
+.quick-ai-mode-toggle,
+.quick-ai-chip button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #a5a59f;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.quick-ai-close {
+  width: 32px;
+  height: 32px;
+}
+.quick-ai-mode-toggle {
+  min-height: 30px;
+  padding: 0 9px;
+  color: #aaa9a3;
+  border: 1px solid #292929;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.quick-ai-mode-toggle:hover {
+  color: #fff;
+  background: #1d1d1d;
+}
+.quick-ai-form {
+  padding: 12px 0 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+.quick-ai-form:focus-within {
+  box-shadow: inset 0 -1px var(--border-dark);
+}
+.quick-ai-form textarea {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  resize: vertical;
+  padding: 0;
+  color: #f2f2ee;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font: 400 18px/1.5 var(--sans);
+}
+.quick-ai-form textarea::placeholder {
+  color: #777773;
+  opacity: 1;
+}
+.quick-ai-composer-footer {
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 12px;
+  color: #777773;
+  font: 400 10px var(--mono);
+}
+.quick-ai-submit {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: #151515;
+  background: #f3f3ef;
+  border: 0;
+  border-radius: 9px;
+  cursor: pointer;
+  transition:
+    background 150ms var(--ease),
+    opacity 150ms var(--ease);
+}
+.quick-ai-submit:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+.quick-ai-context-row {
+  align-items: flex-start;
+  gap: 15px;
+  min-height: 28px;
+  margin-top: 12px;
+}
+.quick-ai-section-label {
+  padding-top: 7px;
+  flex: 0 0 auto;
+}
+.quick-ai-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-width: 0;
+}
+.quick-ai-no-context {
+  padding-top: 7px;
+  color: #777773;
+  font-size: 12px;
+}
+.quick-ai-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  max-width: 100%;
+  padding: 4px 6px 4px 9px;
+  color: #d7d7d2;
+  background: #161616;
+  border: 1px solid #2b2b2b;
+  border-radius: 7px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.quick-ai-chip > svg {
+  flex: 0 0 auto;
+  color: #9a9a94;
+}
+.quick-ai-chip-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  background: var(--red);
+  border-radius: 50%;
+}
+.quick-ai-chip button {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 auto;
+}
+.quick-ai-result {
+  margin-top: 15px;
+  padding: 17px 18px;
+  background: #111;
+  border: 1px solid #30302f;
+  border-radius: 12px;
+  animation: quick-ai-result-in 180ms var(--ease) both;
+}
+.quick-ai-result p {
+  margin-top: 7px;
+  color: #e9e9e4;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.quick-ai-result.is-unsupported p {
+  color: #aaa9a3;
+}
+.quick-ai-apply,
+.quick-ai-applied {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.quick-ai-apply {
+  color: #151515;
+  background: #f3f3ef;
+  border: 0;
+  cursor: pointer;
+}
+.quick-ai-applied {
+  color: #c8d7c5;
+  background: #172018;
+  border: 1px solid #28392a;
+}
+.quick-ai-actions {
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #242424;
+}
+.quick-ai-picker-group {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.quick-ai-picker {
+  position: relative;
+}
+.quick-ai-picker summary,
+.quick-ai-action-button {
+  display: inline-flex;
+  min-height: 33px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  color: #c3c3bd;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  font-size: 11px;
+  list-style: none;
+  cursor: pointer;
+}
+.quick-ai-picker summary::-webkit-details-marker {
+  display: none;
+}
+.quick-ai-picker summary:hover,
+.quick-ai-action-button:hover,
+.quick-ai-close:hover {
+  color: #fff;
+  background-color: #1d1d1d;
+}
+.quick-ai-picker-menu {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  bottom: calc(100% + 8px);
+  display: grid;
+  width: max-content;
+  min-width: 190px;
+  max-width: min(320px, calc(100vw - 48px));
+  max-height: 240px;
+  gap: 3px;
+  overflow: auto;
+  padding: 7px;
+  background: #161616;
+  border: 1px solid #333;
+  border-radius: 10px;
+  box-shadow: 0 14px 35px #0009;
+}
+.quick-ai-picker-menu > span {
+  padding: 7px 8px 5px;
+  color: #858581;
+  font: 500 9px var(--mono);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.quick-ai-picker-menu button {
+  padding: 8px;
+  color: #d8d8d3;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  text-align: left;
+  font-size: 11px;
+  cursor: pointer;
+}
+.quick-ai-picker-menu button:hover {
+  background: #272727;
+}
+.quick-ai-attach {
+  position: relative;
+  overflow: hidden;
+}
+.quick-ai-attach input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.quick-ai-footer-note {
+  color: #73736e;
+  font-size: 10px;
+  text-align: right;
+}
+@keyframes quick-ai-result-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 649px) {
+  .quick-ai-surface {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 100px);
+    margin-top: 80px;
+    border-radius: 18px;
+  }
+  .quick-ai-content {
+    padding: 16px;
+  }
+  .quick-ai-heading {
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  .quick-ai-heading-actions {
+    gap: 7px;
+  }
+  .quick-ai-form textarea {
+    font-size: 17px;
+  }
+  .quick-ai-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .quick-ai-footer-note {
+    text-align: left;
+  }
+}
+@media (max-height: 620px) {
+  .quick-ai-surface {
+    max-height: calc(100dvh - 96px);
+    margin-top: 80px;
+  }
+  .quick-ai-content {
+    padding-top: 16px;
+  }
+  .quick-ai-heading {
+    margin-bottom: 18px;
+  }
+  .quick-ai-actions {
+    margin-top: 15px;
+    padding-top: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quick-ai-dimmer,
+  .quick-ai-result {
+    animation: none;
+  }
+  .quick-ai-form,
+  .quick-ai-submit {
+    transition: none;
+  }
+}
