@@ -79,8 +79,7 @@ not performed; opening the browser alone does not prove subscription access.
 
 ## Optional pre-commit hook
 
-This folder was not a Git repository when the harness was installed. After Git
-is initialized, inspect `git config --get core.hooksPath` and any existing hooks.
+Inspect `git config --get core.hooksPath` and any existing hooks.
 If no hook system exists, activate the included hook with:
 
 ```sh
