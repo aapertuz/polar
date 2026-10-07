@@ -12,7 +12,9 @@
     "format:check": "oxfmt --check native/src native/tests native/src-tauri/capabilities native/src-tauri/tauri.conf.json native/package.json native/tsconfig.json native/vite.config.ts native/index.html server/src server/tests server/package.json scripts package.json pnpm-workspace.yaml .oxfmtrc.json .oxlintrc.json .codex/hooks.json",
     "lint": "oxlint native/src native/tests native/vite.config.ts server/src server/tests scripts",
     "check:docs": "node scripts/check-docs.mjs",
-    "check": "pnpm format:check && pnpm lint && pnpm check:docs && pnpm --filter @polar/native check && pnpm --filter @polar/server check",
+    "check:frontend": "node scripts/check-frontend.mjs",
+    "test:frontend-check": "node --test scripts/check-frontend.test.mjs",
+    "check": "pnpm format:check && pnpm lint && pnpm check:docs && pnpm check:frontend && pnpm test:frontend-check && pnpm --filter @polar/native check && pnpm --filter @polar/server check",
     "check:rust": "cargo fmt --manifest-path native/src-tauri/Cargo.toml --all -- --check && cargo check --locked --manifest-path native/src-tauri/Cargo.toml",
     "test:rust": "cargo test --locked --manifest-path native/src-tauri/Cargo.toml",
     "verify": "pnpm check && pnpm build && pnpm --filter @polar/native test && pnpm check:rust && pnpm test:rust && pnpm --filter @polar/server test"

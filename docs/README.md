@@ -10,6 +10,7 @@ chooses other paths, update the map to point there instead of duplicating them.
 
 ## Workflow
 
+- [Frontend conventions](FRONTEND.md)
 - [Planning policy and execution-plan template](PLANS.md)
 - [Active plans](exec-plans/active/)
 - [Completed plans](exec-plans/completed/)

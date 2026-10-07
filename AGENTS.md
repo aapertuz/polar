@@ -13,6 +13,7 @@ Polar is a pnpm monorepo with a Tauri 2 desktop app and a Fastify server. Inspec
 * [Product requirements](docs/PRODUCT.md): intended behavior, terminology, scope, and non-goals. Read before defining or changing product behavior.
 * [Target architecture](ARCHITECTURE.md): system boundaries, data ownership, and execution flows. Read before changing interfaces, persistence, dependencies, or responsibilities across modules.
 * [Design system](docs/DESIGN.md): UI hierarchy, components, tokens, interaction, and accessibility. Read before any UI or visual change; reuse existing components and documented tokens.
+* [Frontend conventions](docs/FRONTEND.md): React import, behavior, rendering, and component rules for `native/src/`.
 * [Execution plans](docs/PLANS.md): when to plan and how to resume work.
 * `docs/changes/`: optional change specifications for large or ambiguous work.
 * [Verification](docs/VERIFICATION.md): commands, limitations, and optional hooks.

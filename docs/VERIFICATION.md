@@ -12,7 +12,9 @@ server does not load `.env` files automatically.
 | `pnpm format:check` | Checks supported source and config files without changing them |
 | `pnpm lint` | Oxlint correctness rules for frontend, server, and scripts |
 | `pnpm check:docs` | Harness paths exist, AGENTS.md stays short, local Markdown file links resolve |
-| `pnpm check` | Oxfmt check, Oxlint, documentation check, and TypeScript checks for native and server |
+| `pnpm check:frontend` | AST checks local source aliases, named JSX event/ref handlers, hook composition, and registry rendering |
+| `pnpm test:frontend-check` | Regression fixtures prove the frontend checker rejects prohibited patterns and permits render-only JSX |
+| `pnpm check` | Oxfmt check, Oxlint, documentation and frontend checks, checker regression tests, and TypeScript checks for native and server |
 | `pnpm build` | Native production frontend and compiled server; no desktop installer |
 | `pnpm check:rust` | Rust formatting and locked dependency compilation at `native/src-tauri/Cargo.toml` |
 | `pnpm test:rust` | Rust tests using `native/src-tauri/Cargo.lock` |

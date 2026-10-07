@@ -2,7 +2,7 @@
 
 ## Git
 
-- `pre-commit`: `pnpm check` (formatting, lint, documentation, and TypeScript checks).
+- `pre-commit`: `pnpm check` (formatting, lint, documentation, frontend convention checks, and TypeScript checks).
 - `pre-push`: `pnpm verify` (checks, builds, native tests, Rust checks/tests, server tests).
   Deletion-only pushes skip verification.
 

@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-
+import { checkBoundaries } from "../../scripts/frontend-boundaries.mjs";
 const source = fileURLToPath(new URL("../src/", import.meta.url));
 function files(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -11,26 +11,44 @@ function files(directory: string): string[] {
     return entry.isDirectory() ? files(path) : /\.tsx?$/.test(path) ? [path] : [];
   });
 }
-
-test("shared UI does not import features or page composition", () => {
-  for (const file of files(join(source, "components"))) {
-    for (const match of readFileSync(file, "utf8").matchAll(/from\s+["']([^"']+)["']/g)) {
-      if (!match[1].startsWith(".")) continue;
-      const target = relative(source, resolve(dirname(file), match[1]));
-      assert.ok(!/^(features|pages)\//.test(target), `${relative(source, file)} imports ${target}`);
-    }
-  }
+test("frontend dependencies respect shared and feature boundaries", () => {
+  for (const file of files(source))
+    assert.deepEqual(checkBoundaries(file, readFileSync(file, "utf8"), source), []);
 });
-
-test("features do not import pages or other feature internals", () => {
-  for (const file of files(join(source, "features"))) {
-    const feature = relative(source, file).split("/")[1];
-    for (const match of readFileSync(file, "utf8").matchAll(/from\s+["']([^"']+)["']/g)) {
-      if (!match[1].startsWith(".")) continue;
-      const target = relative(source, resolve(dirname(file), match[1]));
-      assert.ok(!target.startsWith("pages/"), `${file} imports page ${target}`);
-      if (target.startsWith("features/"))
-        assert.equal(target.split("/")[1], feature, `${file} imports another feature`);
-    }
+test("aliases, relative imports, side effects and re-exports preserve boundary checks", () => {
+  for (const statement of [
+    'import "@/pages/home/HomeScreen";',
+    'export { HomeScreen } from "@/pages/home/HomeScreen";',
+    'import { HomeScreen } from "../../../pages/home/HomeScreen";',
+  ]) {
+    assert.equal(
+      checkBoundaries(join(source, "features/missions/components/Example.tsx"), statement, source)
+        .length,
+      1,
+    );
   }
+  assert.equal(
+    checkBoundaries(
+      join(source, "components/ui/Example.tsx"),
+      'import "@/features/missions/types/mission.types";',
+      source,
+    ).length,
+    1,
+  );
+  assert.equal(
+    checkBoundaries(
+      join(source, "features/missions/Example.tsx"),
+      'export * from "@/features/attention/types/timeline.types";',
+      source,
+    ).length,
+    1,
+  );
+  assert.deepEqual(
+    checkBoundaries(
+      join(source, "features/missions/Example.tsx"),
+      'import "react"; export * from "@/components/ui/Icon";',
+      source,
+    ),
+    [],
+  );
 });
