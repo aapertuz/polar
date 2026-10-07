@@ -5,9 +5,14 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const errors = [];
 const required = [
-  "AGENTS.md", "docs/README.md", "docs/PLANS.md", "docs/VERIFICATION.md",
-  "docs/exec-plans/active", "docs/exec-plans/completed",
-  "docs/exec-plans/tech-debt-tracker.md", "docs/changes/README.md",
+  "AGENTS.md",
+  "docs/README.md",
+  "docs/PLANS.md",
+  "docs/VERIFICATION.md",
+  "docs/exec-plans/active",
+  "docs/exec-plans/completed",
+  "docs/exec-plans/tech-debt-tracker.md",
+  "docs/changes/README.md",
   ".agents/skills/README.md",
 ];
 for (const path of required) {
@@ -20,11 +25,15 @@ if (existsSync(agents) && readFileSync(agents, "utf8").trimEnd().split("\n").len
 function markdownFiles(path) {
   if (!existsSync(path)) return [];
   if (!statSync(path).isDirectory()) return path.endsWith(".md") ? [path] : [];
-  return readdirSync(path, { withFileTypes: true }).flatMap(entry =>
-    entry.isSymbolicLink() ? [] : markdownFiles(resolve(path, entry.name)));
+  return readdirSync(path, { withFileTypes: true }).flatMap((entry) =>
+    entry.isSymbolicLink() ? [] : markdownFiles(resolve(path, entry.name)),
+  );
 }
-for (const file of [agents, ...markdownFiles(resolve(root, "docs")),
-  ...markdownFiles(resolve(root, ".agents/skills"))]) {
+for (const file of [
+  agents,
+  ...markdownFiles(resolve(root, "docs")),
+  ...markdownFiles(resolve(root, ".agents/skills")),
+]) {
   if (!existsSync(file)) continue;
   const content = readFileSync(file, "utf8").replace(/```[\s\S]*?```/g, "");
   for (const match of content.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {

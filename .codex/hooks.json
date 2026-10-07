@@ -1,5 +1,5 @@
 {
-  "description": "Polar project context and documentation feedback.",
+  "description": "Polar project context, formatting, and documentation feedback.",
   "hooks": {
     "SessionStart": [
       {
@@ -19,8 +19,8 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/scripts/codex-hooks.mjs\"",
-            "timeout": 15,
-            "statusMessage": "Checking Polar documentation"
+            "timeout": 60,
+            "statusMessage": "Formatting changed source and checking Polar documentation"
           }
         ]
       }

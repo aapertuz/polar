@@ -5,7 +5,7 @@ Polar is a pnpm monorepo with a Tauri 2 desktop app and a Fastify server. Inspec
 ## Map
 
 * `native/`: Tauri 2 desktop application with React 19, TypeScript, and Vite.
-* `native/src/`: React UI; `native/src/App.tsx` calls the Rust `greet` command.
+* `native/src/`: React UI; `native/src/App.tsx` mounts the fixture-based homescreen in `pages/home/`.
 * `native/src-tauri/`: Rust application, Tauri configuration, and capabilities.
 * `server/`: TypeScript Fastify application; `server/src/app.ts` configures the server.
 * `pnpm-workspace.yaml`: the `@polar/native` and `@polar/server` workspace packages.
@@ -20,7 +20,7 @@ Polar is a pnpm monorepo with a Tauri 2 desktop app and a Fastify server. Inspec
 
 The three documents above are owner-maintained project references. Do not modify them unless explicitly requested. If implementation requires a durable change to them, record the proposed change in the execution plan or final report for the owner to resolve.
 
-* [Hooks](docs/HOOKS.md): automatic Git and Codex checks, setup, and troubleshooting. Hooks supplement verification; run the checks required by docs/VERIFICATION.md even when hooks are inactive. The Codex Stop hook checks documentation only.
+* [Hooks](docs/HOOKS.md): automatic Git and Codex checks, setup, and troubleshooting. Hooks supplement verification; run the checks required by docs/VERIFICATION.md even when hooks are inactive. The Codex Stop hook formats changed source and checks documentation.
 
 `ARCHITECTURE.md` describes a target architecture and includes proposed paths and provisional choices. Inspect the repository to establish what is implemented; do not treat planned components as existing or implement future scope merely because it is documented.
 
@@ -31,6 +31,8 @@ Explicit user instructions and product requirements define intended behavior. Cu
 1. Inspect the code directly involved in the change, its callers and dependencies, related tests, linked documentation, and existing changes before editing. Expand the search when a change crosses module, frontend/native, persistence, or product boundaries. Preserve unrelated work, follow established conventions, and keep changes focused.
 
 2. Before starting implementation, check `docs/exec-plans/active/` for a plan covering the requested work. Resume and update that plan instead of creating a duplicate. For a clear change confined to one area, work directly or use a short conversational plan. Create a saved plan when work spans multiple sessions, requires coordinated changes across boundaries, or involves a migration or unresolved implementation risks. Use `docs/exec-plans/active/YYYY-MM-DD-short-name.md` and the template in [docs/PLANS.md](docs/PLANS.md). Record acceptance criteria before implementation.
+
+   During planning, distinguish explicit requirements, decisions supported by project documentation, and agent proposals. Do not present inferred interaction behavior or added features as settled acceptance criteria. Clarify consequential ambiguities before finalizing the plan; routine implementation choices may be resolved autonomously. Unreviewed proposals must remain visibly labeled in the saved plan.
 
 3. Add a change spec at `docs/changes/YYYY-MM-DD-short-name.md` when the intended behavior, scope, or acceptance criteria need clarification beyond the execution plan. Use the template in [docs/changes/README.md](docs/changes/README.md) and link the spec from the plan. A spec is optional when the request and plan already define the outcome. Resolve uncertainty through code and documentation first; ask the user when an unresolved decision changes intended behavior, scope, or compatibility, and continue independent work while waiting.
 
@@ -54,7 +56,9 @@ Explicit user instructions and product requirements define intended behavior. Cu
 * `pnpm dev:server`: Fastify development server with reload.
 * `pnpm dev`: launch both applications with coordinated shutdown.
 * `pnpm tauri dev` / `pnpm tauri build`: run Tauri CLI commands from the repository root; the script targets `native/`.
-* `pnpm check`: documentation and both package TypeScript checks.
-* `pnpm verify`: documentation, both builds, Rust checks/tests, and server tests.
+* `pnpm format`: format supported source and config files with Oxfmt.
+* `pnpm lint`: lint frontend, server, and scripts with Oxlint.
+* `pnpm check`: formatting, lint, documentation, and both package TypeScript checks.
+* `pnpm verify`: formatting, lint, docs, builds, native/server tests, and Rust checks/tests.
 
 Keep this file a concise map. Put detailed procedures in linked documents.

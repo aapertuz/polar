@@ -1,19 +1,20 @@
 {
   "name": "@polar/native",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "engines": { "node": ">=22.12.0" },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
     "tauri": "tauri"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
+    "motion": "^14.0.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -24,5 +25,8 @@
     "@vitejs/plugin-react": "^6.0.2",
     "typescript": "~6.0.3",
     "vite": "^8.0.16"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

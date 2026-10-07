@@ -2,8 +2,8 @@
 
 ## Git
 
-- `pre-commit`: `pnpm check` (documentation and both TypeScript packages).
-- `pre-push`: `pnpm verify` (checks, builds, Rust checks/tests, server tests).
+- `pre-commit`: `pnpm check` (formatting, lint, documentation, and TypeScript checks).
+- `pre-push`: `pnpm verify` (checks, builds, native tests, Rust checks/tests, server tests).
   Deletion-only pushes skip verification.
 
 Both run from the repository root and propagate failures. They check the current
@@ -23,9 +23,11 @@ To disable these Git hooks, unset that local key only if it still equals `.githo
 - `SessionStart` on startup, resume, clear, or compact: supplies a short document
   map and active-plan filenames. It does not load entire plans into context.
 - `Stop`: runs the dependency-free documentation checker with a ten-second limit.
-  On failure, requests one repair pass; subsequent failure becomes a warning.
-  Plan mode receives warnings only. The hook never runs a full build or claims
-  that application tests passed. Pre-existing documentation failures can surface.
+  Before checking docs, it runs Oxfmt on changed supported source and config files
+  in the working tree. On documentation failure, it requests one repair pass;
+  subsequent failure becomes a warning. Plan mode receives warnings only. The hook
+  never runs a full build or claims that application tests passed. Pre-existing
+  documentation or source changes can be formatted when they are still uncommitted.
 
 Requires Git, Node, and a Codex release supporting these events. The project config
 explicitly enables hooks. Open a fresh Codex session in this trusted project and

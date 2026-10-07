@@ -8,13 +8,17 @@ server does not load `.env` files automatically.
 
 | Command | Evidence |
 | --- | --- |
+| `pnpm format` | Formats supported source and config files with Oxfmt |
+| `pnpm format:check` | Checks supported source and config files without changing them |
+| `pnpm lint` | Oxlint correctness rules for frontend, server, and scripts |
 | `pnpm check:docs` | Harness paths exist, AGENTS.md stays short, local Markdown file links resolve |
-| `pnpm check` | Documentation check plus TypeScript checks for native and server |
+| `pnpm check` | Oxfmt check, Oxlint, documentation check, and TypeScript checks for native and server |
 | `pnpm build` | Native production frontend and compiled server; no desktop installer |
 | `pnpm check:rust` | Rust formatting and locked dependency compilation at `native/src-tauri/Cargo.toml` |
 | `pnpm test:rust` | Rust tests using `native/src-tauri/Cargo.lock` |
+| `pnpm --filter @polar/native test` | Desktop window bounds, resize recovery, reduced-motion policy, and frontend import-boundary checks |
 | `pnpm --filter @polar/server test` | Fastify health response and server configuration tests |
-| `pnpm verify` | Documentation, both package builds, Rust checks/tests, and server tests |
+| `pnpm verify` | Oxfmt, Oxlint, documentation, both package builds, native UI geometry/motion/import-boundary tests, Rust checks/tests, and server tests |
 | `pnpm dev:native` | Interactive desktop validation, including Vite and Rust command behavior |
 | `pnpm dev:server` | Fastify development server with reload |
 | `pnpm dev` | Both applications with sibling process cleanup |
@@ -29,6 +33,18 @@ desktop app. For UI changes, inspect the changed flow at relevant window sizes.
 Browser preview alone does not verify Tauri commands. Generated output in
 `native/dist/`, `server/dist/`, `native/src-tauri/target/`, and
 `native/src-tauri/gen/schemas/` must not be treated as source.
+
+## Homescreen desktop smoke review
+
+Run `pnpm dev:native`. The homescreen uses immutable sample data and ephemeral UI state.
+
+1. Check the default F1 Pilot view, then select US Sales and Product. Confirm title, facts, tabs, context, and timeline change together.
+2. Drag mission and timeline by their headers, overlap them, and move partly offscreen. Resize to 800×600 and back; confirm the headers remain reachable. Use Move window with arrow keys, Shift for precision, and Escape to cancel; use Window controls → Reset layout.
+3. Open each rail/island preview, the proposal preview, calendar, and timeline details. Check Escape/outside dismissal and focus return. Search should focus its input. Tab navigation and compact timeline must keep keyboard focus within their open surface.
+4. Inspect 1672×941, 1440×900, 1280×800, 1024×768, 800×600, and a narrow single-column layout. Internal scrolling should reveal content without horizontal page overflow.
+5. With permission, temporarily enable macOS Accessibility → Motion → Reduce motion. Exercise tabs and previews, then restore the original setting. Policy tests additionally check that spatial reveals and scaling are removed.
+
+These manual scenarios do not establish backend behavior or automated pointer-gesture coverage. No application packaging changed, so the homescreen change does not require `pnpm tauri build`.
 
 ## Optional pre-commit hook
 
