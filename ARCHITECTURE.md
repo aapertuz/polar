@@ -2,9 +2,9 @@
 
 Status: V0 target architecture · Updated: 2026-10-06
 
-This document defines the intended system boundaries, responsibilities, data ownership, and execution flows. The workspace currently contains design artifacts, not an implemented application. Paths below are proposed. Technology choices marked provisional require validation before implementation.
+This document defines the intended system boundaries, responsibilities, data ownership, and execution flows. The repository contains a Tauri/React application under `native/` and a Fastify scaffold under `server/`; the server currently implements health and configuration behavior, not the domain modules described below. The folder maps define target organization within these existing packages, not claims that every directory or capability exists. Technology choices marked provisional require validation before implementation.
 
-Intended location in the application repository: `architecture.md` at the repository root. Implementation plans, API specifications, and individual architectural decision records should remain separate.
+This reference lives at `ARCHITECTURE.md` at the repository root. Implementation plans, API specifications, and individual architectural decision records should remain separate.
 
 ## 1. Product and scope
 
@@ -89,51 +89,140 @@ SSE does not carry credentials or serve as a durable job queue. Desktop model wo
 | Identity / workspace | Authenticate application sessions; enforce membership and access | User, workspace, membership, registered device |
 | Personal knowledge / goals | Maintain user-owned goals, preferences, knowledge, provenance, and explicit sharing | Personal goals, knowledge items, goal–mission links, sharing grants |
 | Missions / work | Validate and commit mission, checkpoint, dependency, and action transitions | Current mission and action state; plan versions |
-| Evidence / events | Accept provenance-tagged evidence and record domain events | Evidence records; append-only domain history |
+| Evidence | Accept provenance-tagged evidence and validate evidence updates | Evidence records and evidence-specific domain events |
 | Context engine | Assemble user-centered context across authorized sources, filtered for the intended audience | Versioned context manifest with source scopes and audience |
 | Mission interpreter / planner | Translate goals and constraints into a proposed plan | Structured plan proposal |
 | Progress evaluator / replanner | Compare evidence with completion criteria; propose justified changes | Progress assessment and plan diff |
 | Next-action engine | Rank actionable work, expose blockers and decisions, manage reminders | Attention items and reminder state |
-| Policy / approvals | Apply deterministic rules; bind User decisions to an exact proposal | Approval decision and authorization result |
+| Policy / approvals | Own proposal creation and lifecycle; apply deterministic rules and bind User decisions to an exact proposal | Proposal records, approval decisions, and authorization results |
 | Reasoning coordinator | Manage provider requests, leases, result validation, and stale-result handling | Reasoning request and validated result |
-| Infrastructure adapters | Database, Inngest, provider bridges, optional Jev, future integrations | Implementations of application ports |
+| Server infrastructure adapters | Database persistence, Inngest delivery, optional Jev, future integrations | Implementations of server application ports; no desktop provider execution |
+| Desktop provider adapters | Invoke the selected model provider through the Rust/local agent boundary | Normalized provider results; locally managed credentials |
 
-Domain modules expose application services. HTTP routes and workflow handlers call those services; neither duplicates business rules. Only the owning module changes its records. Cross-module changes use an explicit application operation and a shared transaction where atomicity is required.
+Domain modules expose application services. HTTP routes and workflow handlers call those services or cross-module operations; neither duplicates business rules. Only the owning module changes its records. Cross-module coordination lives in `server/src/operations/`, not in routes, workflows, or dependency wiring.
 
-Dependency direction: **HTTP/workflows → application services → domain rules**. Infrastructure adapters implement ports defined by the application. A composition layer wires adapters to services. Domain rules do not import Fastify, Inngest, React, or provider SDKs.
+Dependency direction: **HTTP/workflows → operations or module application services → domain rules**. Infrastructure adapters implement ports consumed by the application layer. A composition layer wires adapters to services and operations. Domain rules do not import Fastify, Inngest, React, database clients, or provider SDKs.
+
+Each domain module defines the events for changes it owns. Shared persistence adapters append those events, audit records, and outbox entries in the same transaction as the associated state changes. The evidence module does not own other modules' event definitions or provide a mandatory service dependency for every mutation. History queries use authorized read ports; an append-only storage table does not make all history part of the evidence domain.
+
+The approvals module owns proposal records from creation through review and resolution, including the exact payload, audience, base revisions, and evidence references. Reasoning returns validated candidate content; an application operation registers that content through approvals. The work module owns validation and application of mission/plan diffs. An approval operation coordinates approvals, work, and relevant access checks so recording an approved decision and committing its plan change are atomic. Rejection closes the proposal; editing creates a new proposal rather than mutating the diff bound to an existing decision.
 
 Shared contracts contain versioned request, event, and result schemas, not database entities or server internals. Validate data at runtime at every external boundary; TypeScript types alone do not validate JSON. The Rust runtime must validate the serialized contracts it consumes.
 
-### Proposed repository map
+### Target repository map
 
 ```text
-architecture.md
-apps/
-  desktop/
-    src/                         # React views and desktop state
-    src-tauri/                   # Rust IPC, local agent, SQLite, credentials, providers
-  server/
-    src/
-      http/                      # Fastify routes, sessions, SSE
-      modules/
-        identity/                # Users, workspace memberships and device registration
-        knowledge/               # Personal goals, knowledge, provenance and sharing
-        work/                    # Missions, checkpoints, actions and dependencies
-        evidence/                # Evidence ingestion and domain history
-        reasoning/               # Context, planning, evaluation and request coordination
-        approvals/               # Policy evaluation and proposal approval
-        attention/               # Next actions and reminders
-      workflows/                 # Inngest functions and scheduled handlers
-      adapters/                  # Database and external service implementations
-      composition/               # Dependency wiring and application startup
-    migrations/                  # Versioned Postgres migrations
+ARCHITECTURE.md
+native/
+  src/                           # React views and desktop state
+  src-tauri/                     # Rust IPC, local agent, SQLite, credentials, providers
+server/
+  src/
+    http/                        # Fastify routes, sessions, SSE
+    modules/
+      identity/                  # Users, workspace memberships and device registration
+      knowledge/                 # Personal goals, knowledge, provenance and sharing
+      work/                      # Missions, checkpoints, actions and dependencies
+      evidence/                  # Evidence ingestion and evidence-specific rules
+      reasoning/                 # Context, planning, evaluation and request coordination
+      approvals/                 # Proposal lifecycle, policy evaluation and decisions
+      attention/                 # Next actions and reminders
+    operations/                  # Cross-module application coordination
+    workflows/                   # Inngest functions and scheduled handlers
+    adapters/                    # Database and server external service implementations
+    composition/                 # Dependency wiring and application startup
+  migrations/                    # Versioned Postgres migrations
 packages/
   contracts/                     # Transport schemas and compatible generated types
   test-fixtures/                 # Synthetic events and reasoning evaluation cases
 docs/decisions/                 # Architectural decision records
 ```
 
-These paths are a proposal, not existing code. Keep modules within the server application until independent packaging or deployment solves a demonstrated problem. React never accesses cloud SQL or provider credentials directly.
+Directories beyond the current scaffold are targets to add as needed. No move to an `apps/` directory is required. Keep modules within the server application until independent packaging or deployment solves a demonstrated problem. React never accesses cloud SQL or provider credentials directly.
+
+### Backend folder organization
+
+Organize the backend by domain module, with responsibility-based subfolders inside each module. The application layer owns use cases; the domain layer owns framework-independent rules. Transport, infrastructure, and dependency wiring stay outside domain modules.
+
+```text
+server/src/
+  modules/
+    work/                        # Same convention applies to other domain modules
+      application/               # Use cases, services, input/output types
+      domain/                    # Domain rules, domain types, event definitions
+      ports/                     # Repository and external dependency interfaces
+      utils/                     # Pure module-specific helpers, when needed
+  operations/                    # Use cases coordinating multiple modules
+  http/
+    routes/                      # Domain-grouped routes calling use cases
+    schemas/                     # HTTP validation and transport mapping
+    plugins/                     # Sessions, authentication and HTTP infrastructure
+    sse/                         # Authorized subscriptions and notification transport
+  workflows/                     # Durable orchestration calling use cases
+  adapters/
+    database/                    # Repository, transaction, history, audit, outbox adapters
+    inngest/                     # Workflow delivery adapter
+  ports/                         # Shared application interfaces, including unit of work
+  composition/                   # Construction, dependency injection, registration
+  app.ts                         # Fastify app factory; no business rules
+  config.ts                      # Validated process configuration
+  index.ts                       # Startup and process shutdown
+```
+
+- Create only folders with actual contents. Place domain types beside domain rules and use-case types in `application/`; avoid a global collection of unrelated services, models, or utilities. Organize adapter implementations by the module or port they implement as they grow.
+- Module application services depend on their domain rules and ports, not concrete adapters or another module's internals. Operations consume the modules' explicit application interfaces. Resolve cross-module reads through injected query ports; do not import another module's repositories or reach into its tables. Put cross-module mutation coordination in an operation rather than creating reciprocal service dependencies.
+- An atomic operation opens one unit of work through a shared application port. It calls owning modules' transaction-scoped application services, whose repositories and event/audit/outbox writers use the same transaction. The outer operation commits or rolls back; nested services must not independently commit. A single-module mutation follows the same rule with its application service owning the unit of work. SQL clients and transaction handles remain inside adapters; the concrete mechanism depends on the database access layer selected before implementation.
+- HTTP handlers and workflow handlers validate their external inputs, map transport data, invoke application interfaces, and map outcomes. Workflows may manage retries and waits, but state-transition rules and authorization remain in application/domain code. Never keep a transaction open across a workflow wait, model call, or User review.
+- `composition/` wires dependencies and registers handlers; it does not coordinate business operations. Shared `ports/` holds genuinely cross-cutting interfaces, not domain records. Public transport schemas live in `packages/contracts/`; internal domain events are mapped to versioned transport events rather than exposing domain entities.
+- Server reasoning services manage context, requests, leases, validation, and results. Provider invocation and credential handling stay in `native/src-tauri/`; server adapters do not execute the desktop provider bridge.
+
+### React folder organization
+
+Organize React by domain feature, with separate page composition and shared desktop infrastructure under `native/src/`.
+
+```text
+native/src/
+  app/                           # Application composition, providers, routing when needed
+  pages/
+    home/
+      HomeScreen.tsx             # Composes features and desktop surfaces
+      components/                # Components specific to this page
+      hooks/                     # Page-only orchestration and UI state
+      styles/                    # Page-specific styles
+  features/
+    missions/
+      components/                # Mission switcher, window, overview, plan, context
+      hooks/                     # Mission-specific React hooks
+      utils/                     # Pure mission-specific helpers
+      types/                     # Feature-local UI types
+      fixtures/                  # Demo or test data
+    attention/
+      components/                # Attention and timeline views
+      hooks/
+      utils/
+      types/
+      fixtures/
+  components/
+    ui/                          # Shared domain-independent visual primitives
+    desktop/
+      components/                # Shared desktop windows, rail, and system island
+      hooks/                     # Window movement and desktop state
+      utils/                     # Pure geometry and movement helpers
+  hooks/                         # Domain-independent hooks used across the UI
+  utils/                         # Domain-independent pure helpers used across the UI
+  styles/                        # Global styles and design tokens
+  assets/
+  App.tsx                        # Root composition entry point
+  main.tsx                       # React bootstrap
+```
+
+- A feature represents a product capability or domain, such as missions, evidence, or approvals. `home` is a page, not a feature; it composes capabilities without owning their domain implementation.
+- Group files within each feature by responsibility: components in `components/`, hooks in `hooks/`, pure helpers in `utils/`, types in `types/`, and fixtures in `fixtures/`. Add `api/` for feature-specific typed IPC wrappers when needed. Create only directories with actual contents; the examples above do not require implementing additional capabilities.
+- Keep feature-specific code within its feature. Promote code to shared folders when it is domain-independent and reused. For example, `useDesktopWindows` belongs in `components/desktop/hooks/`, window geometry in `components/desktop/utils/`, and a reusable media-query hook in `hooks/`.
+- Pages compose features and shared components. Features must not import pages or application composition; shared components, hooks, and utilities must not import features. Cross-feature composition belongs in a page or the application layer; shared transport schemas belong in contracts rather than being imported from another feature's internals.
+- Folder placement does not change runtime ownership: React hooks and IPC wrappers handle presentation and client coordination, while Rust and the server retain their responsibilities described above.
+
+This convention defines the target organization. Existing files under `native/src/features/home/` still require migration; their presence does not make Home a domain feature.
 
 ## 5. Data model and consistency
 
@@ -291,7 +380,7 @@ The following are acceptance criteria for the eventual implementation, not claim
 - Provider contract tests cover valid structured output, malformed output, authentication failure, cancellation, and quota limits without requiring live paid calls.
 - Evaluation fixtures measure whether plans respect constraints, action completion cites sufficient evidence, replanning avoids unnecessary churn, and next actions honor dependencies.
 - End-to-end tests exercise goal → approved plan and evidence → reviewed replan → updated next action.
-- Import-boundary checks prevent domain modules from depending on transport frameworks or infrastructure implementations.
+- Import-boundary checks prevent domain rules from depending on transport frameworks or infrastructure implementations, module application services from importing other modules' internals, and shared infrastructure interfaces from importing domain-specific records. Operations may consume explicit module application interfaces; composition may wire concrete adapters.
 
 Before choosing model automation thresholds, evaluate representative synthetic or consented examples. Record false completion and unnecessary-replan rates; do not treat a model's self-reported confidence as a calibrated metric.
 
