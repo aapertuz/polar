@@ -10,29 +10,31 @@ export function Dialog({
   onClose,
   trigger,
   instant,
+  eyebrow = "POLAR / PREVIEW",
 }: {
   title: string;
   children: ReactNode;
   onClose: () => void;
   trigger?: HTMLElement;
   instant?: boolean;
+  eyebrow?: string;
 }) {
-  const { ref, handleCancel, handleBackdropClick } = useDialog(trigger, onClose);
+  const { ref, titleId, handleCancel, handleBackdropClick } = useDialog(trigger, onClose);
   return createPortal(
     <dialog
       ref={ref}
       className="demo-dialog"
-      aria-labelledby="dialog-title"
+      aria-labelledby={titleId}
       onCancel={handleCancel}
       onClick={handleBackdropClick}
     >
       <AnimatedContent instant={instant} className="dialog-content">
         <div className="overlay-heading">
           <div>
-            <span className="overlay-eyebrow">POLAR / PREVIEW</span>
-            <h2 id="dialog-title">{title}</h2>
+            <span className="overlay-eyebrow">{eyebrow}</span>
+            <h2 id={titleId}>{title}</h2>
           </div>
-          <button className="icon-button" aria-label="Close preview" onClick={onClose}>
+          <button className="icon-button" aria-label={`Close ${title}`} onClick={onClose}>
             <Icon name="close" />
           </button>
         </div>

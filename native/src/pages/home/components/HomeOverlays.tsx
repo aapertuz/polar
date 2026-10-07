@@ -44,7 +44,13 @@ export function HomeOverlays({
     choose,
   };
   return definition.surface === "dialog" ? (
-    <Dialog title={title} onClose={close} trigger={request.anchor} instant={request.instant}>
+    <Dialog
+      title={title}
+      onClose={close}
+      trigger={request.anchor}
+      instant={request.instant}
+      eyebrow={request.kind === "settings" ? "POLAR / SETTINGS" : "POLAR / PREVIEW"}
+    >
       <Component {...props} />
     </Dialog>
   ) : (

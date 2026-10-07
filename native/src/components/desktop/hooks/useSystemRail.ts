@@ -5,7 +5,7 @@ const railItems: { icon: IconName; kind: OverlayRequest["kind"]; label: string }
   { icon: "search", kind: "search", label: "Search missions" },
   { icon: "grid", kind: "launcher", label: "Open launcher" },
   { icon: "file", kind: "documents", label: "Mission documents" },
-  { icon: "settings", kind: "settings", label: "Appearance preview" },
+  { icon: "settings", kind: "settings", label: "Settings" },
 ];
 export function useSystemRail(open: (request: OverlayRequest) => void, home: () => void) {
   const handleItemClick = useCallback(

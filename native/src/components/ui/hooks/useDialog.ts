@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 export function useDialog(trigger: HTMLElement | undefined, onClose: () => void) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
   const handleCancel = (event: React.SyntheticEvent<HTMLDialogElement>) => {
@@ -20,5 +21,5 @@ export function useDialog(trigger: HTMLElement | undefined, onClose: () => void)
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
   }, [trigger]);
-  return { ref, handleCancel, handleBackdropClick };
+  return { ref, titleId, handleCancel, handleBackdropClick };
 }

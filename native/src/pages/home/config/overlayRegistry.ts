@@ -21,7 +21,7 @@ export const overlayRegistry: Record<OverlayKind, OverlayDefinition> = {
   search: { Component: SearchOverlay, title: "Find a mission", surface: "dialog" },
   launcher: { Component: LauncherOverlay, title: "Your workspace", surface: "popover" },
   documents: { Component: DocumentsOverlay, title: "Mission documents", surface: "popover" },
-  settings: { Component: SettingsOverlay, title: "Appearance", surface: "popover" },
+  settings: { Component: SettingsOverlay, title: "Settings", surface: "dialog" },
   notifications: {
     Component: NotificationsOverlay,
     title: "Needs your attention",

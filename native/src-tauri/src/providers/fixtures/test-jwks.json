@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "RSA",
+      "kid": "polar-test",
+      "alg": "RS256",
+      "use": "sig",
+      "n": "5lXCS6gTK2mYZ5kaEtOULFPzqHTLZsN3i4Hk1MlZ_UuOICrl_jgqm3rbuyAj0E5ar0EQ7daafLU3fIwI1emxilPvhIAPjK-NwKJL989C4V2wcDgIkIW7siWSGtnoAWkjB7kt95V8OPROFGE7N-KOGRzqGAZn9BDFzcqb4LZr9Id-Tor2AdC54cWc-TRgFhIiE0prwwQ2j8x4ypvZ8aBUwtAnddkaj5OjbcRG_DQJYyAciAEC_rgT4Go78ZtzsR6Mm34TD7ggP5A6dQKVnEiL-eXS8k9Whl2VXyQhxvK0R-A2p3fOqprejmkS2_lGXBGQAm02uEUOKCxFQJjrjUWh4w",
+      "e": "AQAB"
+    }
+  ]
+}
