@@ -1,7 +1,7 @@
-import { Icon } from "../../../components/ui/Icon";
-import { completedCheckpoints } from "../utils/missionProgress";
-import type { OverlayRequest } from "../../../components/ui/overlay.types";
-import type { Mission } from "../types/mission.types";
+import { Icon } from "@/components/ui/Icon";
+import { useMissionOverview } from "@/features/missions/hooks/useMissionOverview";
+import type { OverlayRequest } from "@/components/ui/overlay.types";
+import type { Mission } from "@/features/missions/types/mission.types";
 
 export function MissionOverview({
   mission,
@@ -10,7 +10,7 @@ export function MissionOverview({
   mission: Mission;
   open: (request: OverlayRequest) => void;
 }) {
-  const completed = completedCheckpoints(mission);
+  const { completed, checkpointProgress, handleApplyPlan } = useMissionOverview(mission, open);
   return (
     <div className="overview">
       <div className="contextual-insight">
@@ -21,12 +21,7 @@ export function MissionOverview({
           <strong>{mission.recommendation}</strong>
           <p>{mission.assessment}</p>
         </div>
-        <button
-          className="primary-button"
-          onClick={(e) =>
-            open({ kind: "proposal", anchor: e.currentTarget, instant: e.detail === 0 })
-          }
-        >
+        <button className="primary-button" onClick={handleApplyPlan}>
           <Icon name="arrow" size={18} />
           Apply to plan
         </button>
@@ -45,7 +40,7 @@ export function MissionOverview({
           </strong>
           <span>checkpoints</span>
           <div className="metric-track">
-            <span style={{ width: `${(completed / mission.checkpoints.length) * 100}%` }} />
+            <span style={{ width: `${checkpointProgress}%` }} />
           </div>
         </div>
         <div>

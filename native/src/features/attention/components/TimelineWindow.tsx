@@ -1,7 +1,9 @@
-import { Icon } from "../../../components/ui/Icon";
-import { PolarMark } from "../../../components/ui/PolarMark";
-import type { OverlayRequest } from "../../../components/ui/overlay.types";
-import type { TimelineData } from "../types/timeline.types";
+import { Icon } from "@/components/ui/Icon";
+import { UpcomingTimelineItem } from "@/features/attention/components/UpcomingTimelineItem";
+import { ActivityTimelineItem } from "@/features/attention/components/ActivityTimelineItem";
+import type { OverlayRequest } from "@/components/ui/overlay.types";
+import type { TimelineData } from "@/features/attention/types/timeline.types";
+import { useTimelineWindow } from "@/features/attention/hooks/useTimelineWindow";
 
 export function TimelineWindow({
   timeline,
@@ -14,51 +16,20 @@ export function TimelineWindow({
   toggleExpanded: () => void;
   open: (request: OverlayRequest) => void;
 }) {
+  const { upcomingItems, visibleActivity, handleUpcomingClick, handleActivityClick } =
+    useTimelineWindow(timeline, expanded, open);
   return (
     <div className="timeline-scroll">
       <section className="up-next">
         <h2>Up next</h2>
         <ol>
-          {timeline.upcoming.map((item, index) => (
-            <li key={item.title}>
-              <button
-                onClick={(e) =>
-                  open({
-                    kind: "detail",
-                    title: item.title,
-                    detail: item.detail,
-                    anchor: e.currentTarget,
-                    instant: e.detail === 0,
-                  })
-                }
-              >
-                <span
-                  className={`timeline-marker ${index === 0 ? "urgent" : ""}`}
-                  aria-hidden="true"
-                />
-                <span className="timeline-item-copy">
-                  <strong>{item.title}</strong>
-                  <span>
-                    {item.timing}
-                    {item.priority && (
-                      <>
-                        {" "}
-                        ·{" "}
-                        <span className={item.priority === "High" ? "high-priority" : ""}>
-                          {item.priority}
-                        </span>
-                      </>
-                    )}
-                  </span>
-                </span>
-                <span
-                  className="avatar"
-                  aria-label={`Owner ${timeline.people.find((p) => p.initials === item.owner)?.name ?? item.owner}`}
-                >
-                  {item.owner}
-                </span>
-              </button>
-            </li>
+          {upcomingItems.map((item, index) => (
+            <UpcomingTimelineItem
+              key={item.title}
+              item={item}
+              index={index}
+              onClick={handleUpcomingClick}
+            />
           ))}
         </ol>
       </section>
@@ -71,33 +42,13 @@ export function TimelineWindow({
           </button>
         </div>
         <ul>
-          {timeline.activity.slice(0, expanded ? undefined : 4).map((item, index) => (
-            <li key={item.title}>
-              <button
-                onClick={(e) =>
-                  open({
-                    kind: "detail",
-                    title: item.title,
-                    detail: item.detail,
-                    anchor: e.currentTarget,
-                    instant: e.detail === 0,
-                  })
-                }
-              >
-                <span className="activity-icon">
-                  {item.title === "You created this mission" ? (
-                    <PolarMark size={19} />
-                  ) : (
-                    <Icon name={item.icon} size={18} />
-                  )}
-                </span>
-                <span className="timeline-item-copy">
-                  <strong>{item.title}</strong>
-                  <span>{item.timing}</span>
-                </span>
-                <span className="sr-only">Activity {index + 1}</span>
-              </button>
-            </li>
+          {visibleActivity.map((item, index) => (
+            <ActivityTimelineItem
+              key={item.title}
+              item={item}
+              index={index}
+              onClick={handleActivityClick}
+            />
           ))}
         </ul>
       </section>

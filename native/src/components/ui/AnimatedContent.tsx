@@ -1,6 +1,6 @@
-import { motion, useIsPresent, useReducedMotion } from "motion/react";
+import { motion } from "motion/react";
 import type { ReactNode } from "react";
-import { contentMotion } from "./motionPolicy";
+import { useAnimatedContent } from "@/components/ui/hooks/useAnimatedContent";
 
 export function AnimatedContent({
   children,
@@ -11,14 +11,9 @@ export function AnimatedContent({
   instant?: boolean;
   className?: string;
 }) {
-  const present = useIsPresent();
-  const reduced = useReducedMotion();
+  const { present, motion: motionProps } = useAnimatedContent(instant);
   return (
-    <motion.div
-      className={className}
-      inert={!present}
-      {...contentMotion(!!reduced, instant, present)}
-    >
+    <motion.div className={className} inert={!present} {...motionProps}>
       {children}
     </motion.div>
   );

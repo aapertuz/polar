@@ -1,7 +1,8 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Icon } from "./Icon";
-import { AnimatedContent } from "./AnimatedContent";
+import { Icon } from "@/components/ui/Icon";
+import { AnimatedContent } from "@/components/ui/AnimatedContent";
+import { useDialog } from "@/components/ui/hooks/useDialog";
 
 export function Dialog({
   title,
@@ -16,31 +17,14 @@ export function Dialog({
   trigger?: HTMLElement;
   instant?: boolean;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
-  useEffect(() => {
-    const dialog = ref.current;
-    const previous = trigger ?? document.activeElement;
-    dialog?.showModal();
-    dialog?.querySelector<HTMLElement>("input[autofocus],input")?.focus();
-    return () => {
-      dialog?.close();
-      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
-    };
-  }, [trigger]);
+  const { ref, handleCancel, handleBackdropClick } = useDialog(trigger, onClose);
   return createPortal(
     <dialog
       ref={ref}
       className="demo-dialog"
       aria-labelledby="dialog-title"
-      onCancel={(e) => {
-        e.preventDefault();
-        closeRef.current();
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) closeRef.current();
-      }}
+      onCancel={handleCancel}
+      onClick={handleBackdropClick}
     >
       <AnimatedContent instant={instant} className="dialog-content">
         <div className="overlay-heading">

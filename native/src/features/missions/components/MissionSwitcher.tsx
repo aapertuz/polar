@@ -1,7 +1,7 @@
-import { Icon } from "../../../components/ui/Icon";
-import { ProgressRing } from "../../../components/ui/ProgressRing";
-import { missions } from "../fixtures/missions.fixtures";
-import type { OverlayRequest } from "../../../components/ui/overlay.types";
+import { Icon } from "@/components/ui/Icon";
+import { useMissionSwitcher } from "@/features/missions/hooks/useMissionSwitcher";
+import { MissionCard } from "@/features/missions/components/MissionCard";
+import type { OverlayRequest } from "@/components/ui/overlay.types";
 
 export function MissionSwitcher({
   selected,
@@ -12,49 +12,36 @@ export function MissionSwitcher({
   select: (id: string, instant?: boolean) => void;
   open: (request: OverlayRequest) => void;
 }) {
+  const { missions, handleAddMission, handleMissionClick, handleCompactSelect } =
+    useMissionSwitcher(selected, select, open);
   return (
     <aside className="mission-switcher" aria-label="Missions">
       <div className="switcher-heading">
         <h2>
-          Missions <span>3</span>
+          Missions <span>{missions.length}</span>
         </h2>
         <button
           className="icon-button"
           aria-label="Add mission"
           title="Add mission"
-          onClick={(e) =>
-            open({ kind: "create", anchor: e.currentTarget, instant: e.detail === 0 })
-          }
+          onClick={handleAddMission}
         >
           <Icon name="plus" />
         </button>
       </div>
       <div className="mission-cards">
         {missions.map((mission) => (
-          <button
+          <MissionCard
             key={mission.id}
-            className={`mission-card ${selected === mission.id ? "selected" : ""}`}
-            aria-pressed={selected === mission.id}
-            onClick={(e) => select(mission.id, e.detail === 0)}
-          >
-            <span className="mission-marker" />
-            <span className="mission-card-copy">
-              <strong>{mission.name}</strong>
-              <span>{mission.outcome}</span>
-            </span>
-            <ProgressRing value={mission.progress} />
-            <span className="mission-card-date">
-              <Icon name="calendar" size={16} />
-              {mission.deadline}
-              <span>·</span>
-              {mission.days} days left
-            </span>
-          </button>
+            mission={mission}
+            selected={selected === mission.id}
+            onClick={handleMissionClick}
+          />
         ))}
       </div>
       <label className="compact-switcher">
         <span className="sr-only">Active mission</span>
-        <select value={selected} onChange={(e) => select(e.target.value, true)}>
+        <select value={selected} onChange={handleCompactSelect}>
           {missions.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name}

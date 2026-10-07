@@ -1,0 +1,1 @@
+export const TIMELINE_PREVIEW_LIMIT = 4;

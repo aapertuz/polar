@@ -1,5 +1,5 @@
-import { Icon } from "../../../components/ui/Icon";
-import type { Mission } from "../types/mission.types";
+import { Icon } from "@/components/ui/Icon";
+import type { Mission } from "@/features/missions/types/mission.types";
 
 export function MissionPlan({ mission }: { mission: Mission }) {
   return (

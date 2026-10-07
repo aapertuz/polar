@@ -1,6 +1,7 @@
-import { Icon, type IconName } from "../../ui/Icon";
-import { PolarMark } from "../../ui/PolarMark";
-import type { OverlayRequest } from "../../ui/overlay.types";
+import { Icon } from "@/components/ui/Icon";
+import { PolarMark } from "@/components/ui/PolarMark";
+import type { OverlayRequest } from "@/components/ui/overlay.types";
+import { useSystemRail } from "@/components/desktop/hooks/useSystemRail";
 
 export function SystemRail({
   open,
@@ -9,26 +10,20 @@ export function SystemRail({
   open: (request: OverlayRequest) => void;
   home: () => void;
 }) {
-  const items: { icon: IconName; kind: OverlayRequest["kind"]; label: string }[] = [
-    { icon: "search", kind: "search", label: "Search missions" },
-    { icon: "grid", kind: "launcher", label: "Open launcher" },
-    { icon: "file", kind: "documents", label: "Mission documents" },
-    { icon: "settings", kind: "settings", label: "Appearance preview" },
-  ];
+  const { railItems: items, handleItemClick, home: goHome } = useSystemRail(open, home);
   return (
     <nav className="system-rail" aria-label="System navigation">
-      <button className="rail-home" onClick={home} aria-label="Home" title="Home">
+      <button className="rail-home" onClick={goHome} aria-label="Home" title="Home">
         <PolarMark size={27} />
       </button>
-      {items.map((item) => (
+      {items.map((item, index) => (
         <button
           key={item.kind}
           className="rail-button"
           aria-label={item.label}
           title={item.label}
-          onClick={(event) =>
-            open({ kind: item.kind, anchor: event.currentTarget, instant: event.detail === 0 })
-          }
+          data-item-index={index}
+          onClick={handleItemClick}
         >
           <Icon name={item.icon} size={23} />
         </button>

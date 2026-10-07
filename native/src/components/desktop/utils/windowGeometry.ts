@@ -1,3 +1,4 @@
+export const DEFAULT_WINDOW_HEADER_HEIGHT = 78;
 export interface Rectangle {
   left: number;
   top: number;
@@ -13,7 +14,7 @@ export interface WindowBounds {
 export function getWindowBounds(
   workspace: Rectangle,
   window: Rectangle,
-  headerHeight = 78,
+  headerHeight: number = DEFAULT_WINDOW_HEADER_HEIGHT,
 ): WindowBounds {
   // Permit partial offscreen placement; only a usable strip of the header must remain.
   const visibleWidth = Math.min(160, window.width, workspace.width);

@@ -7,13 +7,12 @@ export function ProgressRing({
   size?: number;
   label?: boolean;
 }) {
+  const roundedValue = Math.round(value);
+  const accessibleLabel = `${roundedValue}% complete`;
+  const ringStyle = { width: size, height: size };
+  const dashArray = `${value} 100`;
   return (
-    <span
-      className="progress-ring"
-      style={{ width: size, height: size }}
-      role="img"
-      aria-label={`${Math.round(value)}% complete`}
-    >
+    <span className="progress-ring" style={ringStyle} role="img" aria-label={accessibleLabel}>
       <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
         <circle
           cx="32"
@@ -33,11 +32,11 @@ export function ProgressRing({
           strokeWidth="4"
           strokeLinecap="round"
           pathLength="100"
-          strokeDasharray={`${value} 100`}
+          strokeDasharray={dashArray}
           transform="rotate(-90 32 32)"
         />
       </svg>
-      {label && <span>{Math.round(value)}%</span>}
+      {label && <span>{roundedValue}%</span>}
     </span>
   );
 }

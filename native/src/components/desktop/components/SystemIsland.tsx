@@ -1,8 +1,10 @@
-import { Icon } from "../../ui/Icon";
-import { PolarMark } from "../../ui/PolarMark";
-import type { OverlayRequest } from "../../ui/overlay.types";
+import { Icon } from "@/components/ui/Icon";
+import { PolarMark } from "@/components/ui/PolarMark";
+import type { OverlayRequest } from "@/components/ui/overlay.types";
+import { useSystemIsland } from "@/components/desktop/hooks/useSystemIsland";
 
 export function SystemIsland({ open }: { open: (request: OverlayRequest) => void }) {
+  const { openNotifications, openPeople, openLauncher } = useSystemIsland(open);
   return (
     <div className="system-island" aria-label="Polar system status">
       <span className="island-mark">
@@ -19,9 +21,7 @@ export function SystemIsland({ open }: { open: (request: OverlayRequest) => void
         className="island-button notification-button"
         aria-label="Notifications, 1 needs attention"
         title="Notifications"
-        onClick={(e) =>
-          open({ kind: "notifications", anchor: e.currentTarget, instant: e.detail === 0 })
-        }
+        onClick={openNotifications}
       >
         <Icon name="bell" size={18} />
         <span className="notification-count">1</span>
@@ -30,7 +30,7 @@ export function SystemIsland({ open }: { open: (request: OverlayRequest) => void
         className="island-button"
         aria-label="Mission people"
         title="People"
-        onClick={(e) => open({ kind: "people", anchor: e.currentTarget, instant: e.detail === 0 })}
+        onClick={openPeople}
       >
         <Icon name="people" size={18} />
         <span>2</span>
@@ -39,9 +39,7 @@ export function SystemIsland({ open }: { open: (request: OverlayRequest) => void
         className="island-button"
         aria-label="Open launcher"
         title="Launcher"
-        onClick={(e) =>
-          open({ kind: "launcher", anchor: e.currentTarget, instant: e.detail === 0 })
-        }
+        onClick={openLauncher}
       >
         <Icon name="grid" size={18} />
       </button>

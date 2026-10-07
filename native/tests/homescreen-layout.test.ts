@@ -23,10 +23,10 @@ test("mission overview leads with the recommendation and omits header facts and 
 });
 
 test("mission header centers the countdown above the outcome and deadline date", () => {
-  const window = read("features/missions/components/MissionWindow.tsx");
+  const hero = read("features/missions/components/MissionHero.tsx");
   const styles = read("pages/home/styles/home.css");
-  assert.ok(window.indexOf('className="deadline-display"') < window.indexOf("mission.outcome"));
-  assert.ok(window.indexOf("mission.outcome") < window.indexOf('className="mission-deadline"'));
+  assert.ok(hero.indexOf('className="deadline-display"') < hero.indexOf("mission.outcome"));
+  assert.ok(hero.indexOf("mission.outcome") < hero.indexOf('className="mission-deadline"'));
   assert.match(styles, /\.mission-hero\s*\{[^}]*align-items:\s*center/s);
   assert.match(styles, /\.mission-hero\s*\{[^}]*flex-direction:\s*column/s);
 });

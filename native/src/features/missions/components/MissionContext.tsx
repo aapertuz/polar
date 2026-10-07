@@ -1,6 +1,7 @@
-import { Icon } from "../../../components/ui/Icon";
-import type { OverlayRequest } from "../../../components/ui/overlay.types";
-import type { Mission } from "../types/mission.types";
+import { MissionEvidenceRow } from "@/features/missions/components/MissionEvidenceRow";
+import type { OverlayRequest } from "@/components/ui/overlay.types";
+import type { Mission } from "@/features/missions/types/mission.types";
+import { useMissionContext } from "@/features/missions/hooks/useMissionContext";
 
 export function MissionContext({
   mission,
@@ -9,6 +10,7 @@ export function MissionContext({
   mission: Mission;
   open: (request: OverlayRequest) => void;
 }) {
+  const { handleEvidenceClick } = useMissionContext(mission, open);
   return (
     <div className="context-view">
       <section>
@@ -36,28 +38,13 @@ export function MissionContext({
       <section>
         <h2>Evidence & context</h2>
         <div className="evidence-list">
-          {mission.evidence.map((item) => (
-            <button
+          {mission.evidence.map((item, index) => (
+            <MissionEvidenceRow
               key={item.title}
-              onClick={(e) =>
-                open({
-                  kind: "detail",
-                  title: item.title,
-                  detail: `${item.source} · ${item.date}. This sample artifact provides context for ${mission.name}.`,
-                  anchor: e.currentTarget,
-                  instant: e.detail === 0,
-                })
-              }
-            >
-              <Icon name="file" size={18} />
-              <span>
-                <strong>{item.title}</strong>
-                <span>
-                  {item.source} · {item.date}
-                </span>
-              </span>
-              <Icon name="arrow" size={16} />
-            </button>
+              item={item}
+              index={index}
+              onClick={handleEvidenceClick}
+            />
           ))}
         </div>
       </section>
