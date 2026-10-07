@@ -154,7 +154,7 @@ The light canvas is the operating environment. A selected mission opens as a dar
 
 The default desktop composition is:
 
-* Left: system rail and mission switcher.
+* Left: mission switcher.
 * Center: opened mission window.
 * Right: timeline.
 * Top center: compact system island.
@@ -345,13 +345,13 @@ Recommended internal padding:
 * 40px on normal desktop.
 * 48px when the window is wider than 900px.
 
-The header should normally contain:
+The mission window chrome already identifies the selected mission. Its content header should normally stack these items in one centered column:
 
-* Breadcrumb or mission state.
-* Mission title.
-* One sentence outcome.
-* Two or three high value facts.
-* Deadline countdown when time is strategically important.
+* A centered deadline countdown when time is strategically important.
+* One sentence outcome below the countdown.
+* A calendar icon, deadline date, and the label `Deadline` below the outcome.
+
+Avoid repeating the mission title or adding a row of volume and checkpoint facts below the outcome. Keep useful progress information in the overview instead.
 
 Below the header, use a small set of primary views:
 
@@ -545,7 +545,7 @@ It may contain:
 
 It should feel persistent and lightweight.
 
-Use a near black pill with high contrast white icons and very limited red.
+Use a near black compact bar with near square corners, high contrast white icons, and very limited red. Keep its size, contents, and top center placement lightweight and consistent with the surrounding cards.
 
 Do not turn the island into a full navigation bar.
 
@@ -612,9 +612,8 @@ Example:
 
 Rules:
 
-* Start with the observed situation.
-* Explain the consequence.
-* Put the recommendation in bold.
+* Lead with the concrete recommendation in larger, bold text.
+* Follow with the observed situation and consequence as supporting context.
 * Make the action concrete.
 * Offer one obvious action when Polar can modify the plan.
 * Do not add "AI Insight," "Suggestion," or "Needs attention" unless a label is genuinely necessary.

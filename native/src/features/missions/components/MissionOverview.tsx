@@ -18,8 +18,8 @@ export function MissionOverview({
           !
         </span>
         <div className="insight-copy">
-          <p>{mission.assessment}</p>
           <strong>{mission.recommendation}</strong>
+          <p>{mission.assessment}</p>
         </div>
         <button
           className="primary-button"

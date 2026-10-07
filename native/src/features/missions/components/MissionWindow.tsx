@@ -1,9 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useLayoutEffect, useRef } from "react";
-import { Icon } from "../../../components/ui/Icon";
-import { ProgressRing } from "../../../components/ui/ProgressRing";
 import { AnimatedContent } from "../../../components/ui/AnimatedContent";
-import { completedCheckpoints } from "../utils/missionProgress";
+import { Icon } from "../../../components/ui/Icon";
 import { MissionOverview } from "./MissionOverview";
 import { MissionPlan } from "./MissionPlan";
 import { MissionContext } from "./MissionContext";
@@ -33,13 +31,6 @@ export function MissionWindow({
   return (
     <div className="mission-scroll" ref={scrollRef}>
       <div className="mission-hero">
-        <div>
-          <span className="mission-eyebrow">
-            MISSION / {mission.id === "pilot" ? "001" : mission.id === "sales" ? "002" : "003"}
-          </span>
-          <h1>{mission.name}</h1>
-          <p>{mission.outcome}</p>
-        </div>
         <div
           className="deadline-display"
           role="img"
@@ -58,35 +49,15 @@ export function MissionWindow({
             <span>35</span>
           </div>
         </div>
-      </div>
-      <div className="mission-facts">
-        <div>
-          <Icon name="calendar" size={29} />
-          <span>
-            <strong>{mission.deadline}</strong>
-            <span>Mission deadline</span>
-          </span>
+        <div className="mission-outcome">
+          <p>{mission.outcome}</p>
         </div>
-        <div>
-          <Icon name="people" size={30} />
-          <span>
-            <strong>
-              {mission.units.received} / {mission.units.target}
-            </strong>
-            <span>{mission.units.label}</span>
-          </span>
-        </div>
-        <div>
-          <ProgressRing
-            value={(completedCheckpoints(mission) / mission.checkpoints.length) * 100}
-            size={42}
-            label={false}
-          />
-          <span>
-            <strong>
-              {completedCheckpoints(mission)} / {mission.checkpoints.length}
-            </strong>
-            <span>key checkpoints</span>
+        <div className="mission-deadline">
+          <Icon name="calendar" size={16} />
+          <span className="mission-deadline-copy">
+            <span>Deadline</span>
+            <span aria-hidden="true">·</span>
+            <time>{mission.deadline}</time>
           </span>
         </div>
       </div>

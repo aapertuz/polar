@@ -3,7 +3,6 @@ import { MotionConfig } from "motion/react";
 import { isTauri } from "@tauri-apps/api/core";
 import { DesktopWindow } from "../../components/desktop/components/DesktopWindow";
 import { Icon } from "../../components/ui/Icon";
-import { SystemRail } from "../../components/desktop/components/SystemRail";
 import { SystemIsland } from "../../components/desktop/components/SystemIsland";
 import { MissionSwitcher } from "../../features/missions/components/MissionSwitcher";
 import { MissionWindow } from "../../features/missions/components/MissionWindow";
@@ -59,15 +58,6 @@ export function HomeScreen() {
           <span className="crosshair crosshair-bottom" />
         </div>
         <SystemIsland open={open} />
-        <SystemRail
-          open={open}
-          home={() => {
-            close();
-            setTab("Overview");
-            setInstant(true);
-            setDrawerOpen(false);
-          }}
-        />
         <div className="desktop-layout">
           <MissionSwitcher selected={selected} select={select} open={open} />
           <div
