@@ -1,0 +1,12 @@
+{
+  "development": {
+    "branch": "development",
+    "databaseName": "polar_development",
+    "databaseHost": "ep-fragrant-paper-b5lrlyoi.c-7.us-east-2.aws.neon.tech"
+  },
+  "production": {
+    "branch": "production",
+    "databaseName": "polar_production",
+    "databaseHost": "ep-little-sun-b5n476ib.c-7.us-east-2.aws.neon.tech"
+  }
+}

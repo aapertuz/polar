@@ -1,3 +1,4 @@
+import { desktopDevelopmentEnvironment } from "./environment.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import {
   copyFileSync,
@@ -311,7 +312,7 @@ async function develop() {
       cwd: root,
       detached: true,
       env: {
-        ...process.env,
+        ...desktopDevelopmentEnvironment(),
         POLAR_DEV_NODE: process.execPath,
         POLAR_DEV_SESSION: status.server?.session || session,
       },

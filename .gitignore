@@ -30,3 +30,4 @@ server/dist
 *.njsproj
 *.sln
 *.sw?
+.neon
