@@ -4,17 +4,29 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch-path=src --import tsx src/index.ts",
+    "dev": "node ../scripts/environment.mjs development node --watch-path=src --import tsx src/index.ts",
     "check": "tsc --noEmit -p tsconfig.json",
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/index.js",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
+    "db:migrate": "node ../scripts/environment.mjs development node ./node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.migrate.config.ts",
+    "db:migrate:production": "node ../scripts/environment.mjs production node ./node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.migrate.config.ts",
+    "start": "node ../scripts/environment.mjs production node dist/index.js",
+    "start:development": "node ../scripts/environment.mjs development node dist/index.js",
+    "test": "node ../scripts/environment.mjs test node --import tsx --test tests/*.test.ts",
+    "test:integration": "node ../scripts/environment.mjs integration node --import tsx --test tests/integration/*.test.ts"
   },
   "dependencies": {
-    "fastify": "^5.12.5"
+    "@better-auth/drizzle-adapter": "^1.7.7",
+    "@polar/contracts": "workspace:*",
+    "better-auth": "^1.7.7",
+    "drizzle-orm": "^0.45.3",
+    "fastify": "^5.12.5",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^22.15.30",
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
     "tsx": "^4.20.6",
     "typescript": "~6.0.3"
   },
