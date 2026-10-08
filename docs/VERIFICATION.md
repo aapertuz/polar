@@ -3,8 +3,11 @@
 Run commands from the repository root. Prerequisites are Node.js 22.12+, pnpm
 10.10.0, Rust 1.89+ with rustfmt, and platform Tauri build prerequisites.
 Install JavaScript dependencies with `pnpm install --frozen-lockfile`. Server
-environment variables come from the shell; `.env.example` documents them, and the
-server does not load `.env` files automatically.
+environment variables come from the selected root `.env.development.local` or
+`.env.production.local`, or an explicitly scoped shell. See
+[Authentication](AUTHENTICATION.md) and `server/.env.example`. Commands no longer
+load the legacy `.env.local` automatically. Unit tests strip real credentials;
+live authentication/database tests must use development.
 
 | Command | Evidence |
 | --- | --- |
@@ -20,6 +23,8 @@ server does not load `.env` files automatically.
 | `pnpm test:rust` | Rust tests using `native/src-tauri/Cargo.lock` |
 | `pnpm --filter @polar/native test` | Desktop window bounds, resize recovery, reduced-motion policy, and frontend import-boundary checks |
 | `pnpm --filter @polar/server test` | Fastify health response and server configuration tests |
+| `pnpm test:environments` | Credential-file selection, test isolation, and desktop development configuration |
+| `pnpm --filter @polar/server test:integration` | Live development Neon authentication, device approval, bootstrap, and revocation with temporary-account cleanup |
 | `pnpm verify` | Oxfmt, Oxlint, documentation, both package builds, native UI geometry/motion/import-boundary tests, Rust checks/tests, and server tests |
 | `pnpm dev:native` | Interactive desktop validation, including Vite and Rust command behavior |
 | `pnpm native:status` | This checkout's Vite/native session and exact automation target |
