@@ -22,6 +22,8 @@ server does not load `.env` files automatically.
 | `pnpm --filter @polar/server test` | Fastify health response and server configuration tests |
 | `pnpm verify` | Oxfmt, Oxlint, documentation, both package builds, native UI geometry/motion/import-boundary tests, Rust checks/tests, and server tests |
 | `pnpm dev:native` | Interactive desktop validation, including Vite and Rust command behavior |
+| `pnpm native:status` | This checkout's Vite/native session and exact automation target |
+| `pnpm test:native-dev` | Regression checks for instance classification and exclusive launch ownership |
 | `pnpm dev:server` | Fastify development server with reload |
 | `pnpm dev` | Both applications with sibling process cleanup |
 | `pnpm tauri build` | Platform-specific desktop packaging; required when packaging paths change |
@@ -36,9 +38,70 @@ Browser preview alone does not verify Tauri commands. Generated output in
 `native/dist/`, `server/dist/`, `native/src-tauri/target/`, and
 `native/src-tauri/gen/schemas/` must not be treated as source.
 
+## Desktop verification procedure
+
+Use this procedure before any desktop smoke review. The supported launcher is
+`pnpm dev:native` (also used by `pnpm dev`). Direct `pnpm tauri dev` bypasses the
+guard and macOS development identity; reserve it for explicit CLI debugging.
+
+1. Run `pnpm native:status`. It inspects processes and port 1420, and probes the
+   Vite server for its checkout identity. Inspection permission failures are
+   blockers, not evidence that no development process exists.
+2. Reuse a `ready` session. For `starting`, wait for compilation and check status
+   again. For `stopped` or `vite-only`, run `pnpm dev:native`; it starts only the
+   missing parts and holds exclusive launch ownership through startup/rebuilds.
+   A repeated invocation reports the existing session without launching anything.
+   For `port-conflict` or `native-only`, resolve the reported session first;
+   never kill a process just because it occupies the port. Existing unguarded
+   sessions can be reviewed manually; switch launchers only after their owner
+   stops them. Preserve sessions you did not start.
+3. On macOS, select the exact `automation.appPath` reported by status using
+   `cua.getApp(appPath)`. The ignored `.polar-dev/Polar Dev.app` has identity
+   `com.antoniopertuz.polar.dev`; Cargo refreshes its executable on each native
+   launch, including Tauri watcher restarts. A packaged `polar.app` is a snapshot
+   and does not follow live Vite changes. Name-only `polar` selection and raw
+   `target/debug/polar` selection are not reliable automation targets.
+4. Confirm status is `ready`, the selected window has the expected changed
+   interface, and the changed flow works before claiming native verification.
+   Frontend changes use Vite HMR; Rust changes must finish rebuilding and produce
+   a new native PID. Rebind the app after native restart. Browser review verifies
+   frontend behavior only; native IPC must be exercised in the selected app.
+5. Read the computer tool's returned API documentation. On macOS, `getApp` can
+   select/launch a bundle; do not call an unavailable `computer.launch_app` or
+   supply unsupported browser visibility options. These automation errors do not
+   call for Tauri capability changes. Report unavailable automation explicitly.
+6. For `noWindowsAvailable`, `SCStreamErrorDomain`, or a similar window/capture
+   failure, allow **one recovery attempt**: run `pnpm native:status`, discard the
+   old app binding, and, only if status is `ready` with an automation target,
+   bind again using its exact `automation.appPath`. Retry the failed operation
+   once using fresh observations and the documented API. If status or rebinding
+   fails, stop without retrying the operation. Process readiness alone does not
+   establish that automation can discover, capture, or control the window.
+   If the retry fails, stop native window/capture automation for this session.
+   Do not continue the same failure through renamed tasks, other coordinates,
+   screenshots, resize attempts, alternate APIs, or repeated rebinding. A
+   successful screenshot between failures does not reset the recovery budget.
+   Resume only after a concrete relevant state change, such as the user restoring
+   capture access/window visibility or a required native rebuild finishing with
+   a new PID; record the change first. Do not restart the app or change permissions
+   just to reset the budget. Record the operation, error, app path/native PID,
+   recovery attempted, and remaining smoke checks in the current task's evidence.
+   Continue independent checks; browser results cannot close native acceptance
+   criteria, and unfinished native criteria must remain explicitly unverified.
+7. Stop only development sessions you launched, via their terminal's Ctrl+C.
+   The launcher forwards shutdown to its child process group. If a crash leaves
+   an unreadable ownership file, inspect status/processes before removing the
+   reported `.polar-dev/session.json` or its `.guard` directory. Never remove
+   ownership belonging to a live session.
+
+The development bundle changes macOS discovery identity only. Tauri's application
+identifier, application data directory, and credential service names remain the
+same. The status/launch guard supports macOS and Linux with `ps` and `lsof`;
+the distinct bundle target applies to macOS. Windows inspection is not implemented.
+
 ## Homescreen desktop smoke review
 
-Run `pnpm dev:native`.
+Use the desktop verification procedure above.
 
 1. Confirm the default workspace has zero missions, no sample weather or notifications, and the centered message on the canvas and empty timeline in the existing desktop layout. No dark mission window should appear until a mission exists. Quick AI should open with the input focused. Close it with Escape and confirm focus returns to the island mark. The island clock should match the device's local time and advance across a minute boundary.
 2. Open notifications and people; confirm empty messages. Open the launcher and Settings. Check Escape/outside dismissal and focus return. Reopen Quick AI from the island or New mission button. Context and Sources must not offer sample missions. AI responses still use the existing simulated preview; no mission persistence is implemented.
@@ -49,9 +112,7 @@ Browser preview verifies frontend behavior only. It does not verify native provi
 
 ## Provider connection smoke review
 
-Run `pnpm dev:native` and open launcher → Settings. If another development server
-already occupies port 1420, use its running desktop instance rather than starting
-a second Vite server.
+Use the desktop verification procedure above and open launcher → Settings.
 
 1. At 800×600 and a larger window, check Settings scrolling, keyboard focus,
    dismissal, and focus return to the launcher. Browser preview should explain

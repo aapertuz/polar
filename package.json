@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "concurrently --kill-others --names native,server --prefix-colors blue,green \"pnpm dev:native\" \"pnpm dev:server\"",
-    "dev:native": "pnpm --filter @polar/native tauri dev",
+    "dev:native": "node scripts/native-dev.mjs dev",
+    "native:status": "node scripts/native-dev.mjs status",
+    "test:native-dev": "node --test scripts/native-dev.test.mjs",
     "dev:server": "pnpm --filter @polar/server dev",
     "build": "pnpm --filter @polar/native build && pnpm --filter @polar/server build",
     "tauri": "pnpm --filter @polar/native exec tauri",
@@ -17,7 +19,7 @@
     "check": "pnpm format:check && pnpm lint && pnpm check:docs && pnpm check:frontend && pnpm test:frontend-check && pnpm --filter @polar/native check && pnpm --filter @polar/server check",
     "check:rust": "cargo fmt --manifest-path native/src-tauri/Cargo.toml --all -- --check && cargo check --locked --manifest-path native/src-tauri/Cargo.toml",
     "test:rust": "cargo test --locked --manifest-path native/src-tauri/Cargo.toml",
-    "verify": "pnpm check && pnpm build && pnpm --filter @polar/native test && pnpm check:rust && pnpm test:rust && pnpm --filter @polar/server test"
+    "verify": "pnpm check && pnpm test:native-dev && pnpm build && pnpm --filter @polar/native test && pnpm check:rust && pnpm test:rust && pnpm --filter @polar/server test"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

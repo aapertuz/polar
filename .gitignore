@@ -16,6 +16,7 @@ dist-ssr
 !**/.env.example
 
 # Application build output
+.polar-dev/
 native/dist
 server/dist
 

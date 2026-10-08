@@ -45,7 +45,7 @@ Explicit user instructions and product requirements define intended behavior. Cu
 
 7. Validate external input in Rust command handlers before performing native operations. Grant only the Tauri capabilities needed by the requested behavior. When changing a command name, arguments, return value, or error behavior, update and verify both the frontend caller and Rust handler.
 
-8. For documentation-only changes, run `pnpm check:docs`. For application or build-tooling changes, run `pnpm verify` and tests covering the changed behavior. Exercise changed desktop behavior with `pnpm dev:native`; use `pnpm tauri build` when packaging is affected. Follow [docs/VERIFICATION.md](docs/VERIFICATION.md). If a check cannot run, report the command, reason, and remaining verification rather than treating it as passed.
+8. For documentation-only changes, run `pnpm check:docs`. For application or build-tooling changes, run `pnpm verify` and tests covering the changed behavior. For desktop checks, follow the [desktop verification procedure](docs/VERIFICATION.md#desktop-verification-procedure); use `pnpm tauri build` when packaging is affected. If a check cannot run, report the command, reason, and remaining verification rather than treating it as passed.
 
 9. Report what changed, checks actually run, and remaining gaps. Never describe skipped checks or zero discovered tests as tested behavior.
 

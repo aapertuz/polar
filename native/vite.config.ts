@@ -6,7 +6,26 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: "polar-development-identity",
+      configureServer(server) {
+        server.middlewares.use("/__polar_dev", (_request, response) => {
+          response.setHeader("Content-Type", "application/json");
+          response.setHeader("Cache-Control", "no-store");
+          response.end(
+            JSON.stringify({
+              kind: "polar-vite",
+              root: decodeURIComponent(new URL("..", import.meta.url).pathname).replace(/\/$/, ""),
+              pid: process.pid,
+              session: process.env.POLAR_DEV_SESSION || null,
+            }),
+          );
+        });
+      },
+    },
+  ],
   resolve: { alias: { "@": new URL("./src", import.meta.url).pathname } },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
