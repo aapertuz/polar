@@ -1,4 +1,6 @@
+mod application_auth;
 mod providers;
+use application_auth::*;
 use providers::*;
 use tauri::Manager;
 
@@ -14,6 +16,7 @@ pub fn run() {
         .setup(|app| {
             let directory = app.path().app_data_dir()?;
             std::fs::create_dir_all(&directory)?;
+            app.manage(ApplicationAuthState::new(directory.clone())?);
             app.manage(ProviderState::with_lock_path(
                 directory.join("chatgpt.lock"),
             ));
@@ -21,6 +24,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            polar_auth_status,
+            polar_auth_connect,
+            polar_auth_cancel,
+            polar_auth_sign_out,
             chatgpt_status,
             chatgpt_acknowledge_plan,
             chatgpt_connect,

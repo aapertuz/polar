@@ -1,7 +1,9 @@
 import { ChatgptConnection } from "@/features/providers/components/ChatgptConnection";
+import { PolarAccount } from "@/features/application-auth/components/PolarAccount";
 export function SettingsOverlay() {
   return (
     <>
+      <PolarAccount />
       <ChatgptConnection />
       <section className="provider-unavailable" aria-labelledby="claude-heading">
         <div className="provider-heading">
