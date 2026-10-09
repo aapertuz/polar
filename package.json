@@ -6,7 +6,7 @@
     "dev": "concurrently --kill-others --names native,server --prefix-colors blue,green \"pnpm dev:native\" \"pnpm dev:server\"",
     "dev:native": "node scripts/native-dev.mjs dev",
     "native:status": "node scripts/native-dev.mjs status",
-    "test:native-dev": "node --test scripts/native-dev.test.mjs",
+    "test:native-dev": "node --test scripts/native-dev.test.mjs scripts/desktop-review.test.mjs",
     "dev:server": "pnpm --filter @polar/server dev",
     "build": "pnpm --filter @polar/native build && pnpm --filter @polar/server build",
     "tauri": "pnpm --filter @polar/native exec tauri",
