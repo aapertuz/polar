@@ -7,6 +7,9 @@ import type { ServerConfig } from "./config.js";
 import type { PolarDatabase } from "./db/client.js";
 import { polarUser, workspaceMembership } from "./db/schema.js";
 import { bootstrapAccount, registerDevice, WorkspaceMembershipError } from "./domain/bootstrap.js";
+import { Inngest } from "inngest";
+import { installMissionRoutes } from "./missions.js";
+import { installWorkspaceContextRoutes } from "./workspace-context.js";
 
 interface AppOptions {
   auth: PolarAuth;
@@ -20,6 +23,12 @@ export function createApp(options?: AppOptions) {
 
   if (!options) return app;
   const { auth, db, config } = options;
+  const inngest = new Inngest({
+    id: "polar",
+    eventKey: config.inngestEventKey,
+    signingKey: config.inngestSigningKey,
+    isDev: config.environment === "development",
+  });
 
   app.addHook("onRequest", async (request, reply) => {
     const desktopEnvironment = request.headers["x-polar-environment"];
@@ -147,6 +156,9 @@ export function createApp(options?: AppOptions) {
       });
     }
   });
+
+  installMissionRoutes(app, auth, db, config, inngest);
+  installWorkspaceContextRoutes(app, auth, db);
 
   return app;
 }

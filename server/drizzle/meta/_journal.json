@@ -15,6 +15,27 @@
       "when": 1791408724723,
       "tag": "0001_workspace-role-check",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791451051822,
+      "tag": "0002_certain_turbo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791451763865,
+      "tag": "0003_furry_ogun",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791487167771,
+      "tag": "0004_curved_umar",
+      "breakpoints": true
     }
   ]
 }

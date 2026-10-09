@@ -35,6 +35,12 @@ tokio = { version = "1", features = ["net", "sync", "time", "macros"] }
 tokio-util = "0.7"
 url = "2"
 uuid = { version = "1", features = ["v4"] }
+tauri-plugin-dialog = "2.7.3"
+pdf-extract = "0.12.1"
+zip = "8.6.0"
+quick-xml = "0.42.0"
+hex = "0.4.3"
+chrono = "0.4.45"
 
 
 [dev-dependencies]

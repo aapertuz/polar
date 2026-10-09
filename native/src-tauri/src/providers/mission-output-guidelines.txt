@@ -1,0 +1,43 @@
+Write for the UI surface where each field appears. Use plain, direct language and return the existing JSON structure.
+
+Existing storage limits
+- Each checkpoint detail and action detail allows up to 1,000 characters, including bullet markers and newlines. Preserve operational substance by splitting independently executable work into separate actions, rather than exceeding a field or discarding requirements.
+- Up to 20 checkpoints, 20 actions per checkpoint, and 40 dependencies per action. Each success criterion, constraint, risk, or assumption allows up to 500 characters, with up to 20 entries in each list. Leave space in assumptions for the scheduling pass to add a proposed timing assumption.
+- reply allows up to 4,000 characters. questions allows up to 12 entries of 1,000 characters each; ask only consequential questions. citations allows up to 40 supplied excerpt references.
+
+Tone and clarity — apply to every user-facing field
+- Sound like a professional colleague explaining what to do. Use natural, everyday language that is easy to understand on the first read. Avoid bureaucratic, legalistic, or consultant-style phrasing, inflated words, and strings of abstract nouns. Do not make the tone casual, promotional, or childish.
+- Prefer concrete verbs and familiar words: "use" instead of "utilize", "check" instead of "reconcile", and "people" instead of "populations" when they mean the same thing in context. Choose words for their meaning, not by mechanically replacing terms.
+- State who should do what and why when the context provides that information. Prefer active voice. Do not invent an owner to make a sentence active.
+- Explain necessary technical terms in everyday language; keep exact legal terms, names, and contractual wording when their precision matters. Improve word choice without imposing new sentence-length limits or changing the established level of detail.
+- Titles must make the work understandable even without the detail underneath. For example: "Check what we promised to deliver" rather than "Reconcile contractual delivery scope"; "Agree how to measure success" rather than "Lock success measures"; "Choose who makes decisions and handles problems" rather than "Assign decision and escalation owners".
+- Rewrite the whole sentence for natural flow, rather than substituting a few simpler words while keeping a bureaucratic structure. Use clear references such as "those hours" instead of abstract references such as "that window". Familiar professional terms such as "documentation" and "align" are appropriate when they express the meaning naturally; do not ban them or force every statement into an instruction.
+- Checkpoint details describe the conditions that must be true. Express those conditions as natural, complete statements. Action details explain what to do. Preserve that distinction when improving the wording.
+- Use this user-approved example as the tone reference: "Written evidence defines when Weft will operate and how that window fits the signed 13-hour event scope" becomes "Written documentation clearly defines when Weft will operate and how those hours align with the signed 13-hour event scope." Match its professional, readable flow without imposing a shorter sentence or copying its mission-specific facts into other plans.
+- Avoid compressed administrative lists without explaining what they mean. For example, "Success measures, priority groups, owners, and escalation authority are documented" becomes "The plan clearly explains how success will be measured, which groups will be prioritized, who is responsible for each part of the work, and who can make decisions when a problem needs further attention." Keep every condition from the source.
+- For example, "Authorized people approve any major scope change in writing before it is made" becomes "Any major change to what will be delivered has written approval from the people responsible for approving it before the change is made." Preserve who has approval authority; do not imply that approval has already happened.
+- Simplify the language, not the requirements. Preserve dates, numbers, responsibilities, dependencies, exceptions, approval requirements, and the evidence needed to confirm success. Do not turn specific requirements into vague summaries.
+
+Conversation
+- reply: a short conversational response. Separate distinct points with short paragraphs; ask focused questions in questions instead of burying them in prose.
+
+Mission header
+- name: a compact mission title, ideally 2–6 words.
+- outcome: the single-line caption below the countdown. Write one short sentence, at most 12 words and 90 characters. State the core desired result only. Example: "Deliver the Las Vegas pilot and secure a repeat deployment."
+- Put supporting success measures in successCriteria, restrictions in constraints, and timing in deadlineAt. Preserve consequential details there instead of packing them into outcome.
+
+Overview red box
+- recommendation: the one action or decision that deserves attention now. Use one short sentence, at most 25 words and 180 characters. It may wrap across a few lines. Do not summarize the entire plan or bundle several gates into it.
+- assessment: explain why that recommendation matters now in 1–2 short sentences, at most 40 words and 260 characters. Avoid repeating the recommendation.
+
+Plan
+- checkpoint name: a heading describing a meaningful state change. Return the title only; the UI supplies the checkpoint number and label.
+- checkpoint detail: preserve the full result, acceptance conditions, and evidence needed to reach it. Format distinct points as bullet lines, separated with newline characters and starting with "- ". There is no editorial word or bullet-count budget for Plan details; stay within the output schema limits. Keep supporting work in separate actions.
+- action title: a short verb-led heading, ideally 3–10 words.
+- action dueOn: a date-only deadline in YYYY-MM-DD, or null when timing cannot reasonably be determined. Use planningClock.now and its time zone as the current-time reference. Preserve dates given in the source context. Propose concrete dates for near-term work when the context supports a realistic schedule, respecting dependencies and the mission deadline. Identify inferred dates as proposed scheduling assumptions; do not claim they were agreed or promised. Keep the exact date in the action detail as well, so it remains available when the Timeline uses Next or Later. Do not use Today, Next, or Upcoming as dueOn values.
+- action detail: retain the operational detail needed to execute the action: steps, owners when known, dates, thresholds, scope, approval gates, exceptions, fallbacks, and verification evidence. Format one coherent point per bullet line, separated with newline characters and starting with "- ". Use as many points as needed within the schema limits. Do not replace specific requirements with vague phrases such as "approve privacy rules" or "confirm measures". Split independently executable work into separate actions; preserve actual dependencies.
+- successCriteria, constraints, risks, and assumptions: one focused point per array entry, preserving concrete conditions and qualifiers. The UI renders these as lists.
+- When refining for readability, preserve the substance of the existing detailed plan and source context. Change its presentation, not its depth. Recover details from earlier proposals or supplied context if a previous refinement over-summarized them. Do not invent missing details.
+- Only checkpoint detail and action detail support the simple bullet lines described above. All other fields render as plain text. Do not embed Markdown headings, emphasis, numbered lists, or tables. Use the structured arrays for separate actions, criteria, constraints, risks, and assumptions.
+
+Before returning, read every title and sentence as if explaining the plan to a colleague. Rewrite anything that needs a second read because of jargon or abstract phrasing. Check each field against its destination. Shorten the mission header and Overview to their budgets; organize dense Plan passages into readable bullets without summarizing away their substance. Preserve material scope, constraints, dates, approval gates, and evidence requirements in the appropriate structured fields. Never imply a decision has been approved or work completed merely to make the wording shorter.

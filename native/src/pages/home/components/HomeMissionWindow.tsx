@@ -13,6 +13,9 @@ export function HomeMissionWindow({ model }: { model: HomeScreenModel }) {
     draggable,
     windows,
     focusMission,
+    reviewingProposal,
+    activateReviewedProposal,
+    quickAi,
   } = model;
   if (!mission) return null;
   return (
@@ -21,12 +24,23 @@ export function HomeMissionWindow({ model }: { model: HomeScreenModel }) {
       title={mission.name}
       header={
         <>
-          <span>{mission.name}</span>
+          <span>{reviewingProposal ? `Draft · ${mission.name}` : mission.name}</span>
           <span className="breadcrumb-slash">/</span>
           <span>{tab}</span>
         </>
       }
-      actions={<MissionWindowActions open={open} />}
+      actions={
+        <MissionWindowActions
+          open={open}
+          reviewing={reviewingProposal}
+          onActivate={activateReviewedProposal}
+          onRefine={quickAi.refine}
+          replacingPlan={quickAi.replacingPlan}
+          applying={quickAi.chat.loading}
+          onRegenerate={model.regeneratePlan}
+          generating={model.planGenerating}
+        />
+      }
       className="mission-window"
       workspace={desktopCanvas}
       draggable={draggable}

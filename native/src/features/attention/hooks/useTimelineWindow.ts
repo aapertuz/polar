@@ -1,3 +1,5 @@
+import { useCurrentTime } from "@/hooks/useCurrentTime";
+import { actionTiming } from "@/features/attention/utils/actionTiming";
 import type { TimelineData } from "@/features/attention/types/timeline.types";
 import type { OverlayRequest } from "@/components/ui/overlay.types";
 import { TIMELINE_PREVIEW_LIMIT } from "@/features/attention/constants/timeline.constants";
@@ -6,9 +8,11 @@ export function useTimelineWindow(
   expanded: boolean,
   open: (request: OverlayRequest) => void,
 ) {
+  const now = useCurrentTime();
   const visibleActivity = timeline.activity.slice(0, expanded ? undefined : TIMELINE_PREVIEW_LIMIT);
   const upcomingItems = timeline.upcoming.map((item) => ({
     ...item,
+    timing: actionTiming(item.dueOn, now),
     ownerName: timeline.people.find((person) => person.initials === item.owner)?.name ?? item.owner,
   }));
   const handleUpcomingClick = (event: React.MouseEvent<HTMLButtonElement>) => {

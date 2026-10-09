@@ -1,52 +1,38 @@
 import { useCallback, useRef } from "react";
 import { usePresence, useReducedMotion } from "motion/react";
 import { quickAiExpansionMotion } from "@/features/quick-ai/utils/quickAiMotion";
-import type { QuickAiMissionSummary } from "@/features/quick-ai/types/quick-ai.types";
 import type { QuickAiSession } from "@/features/quick-ai/utils/quickAiSession";
 import type { useQuickAi } from "@/features/quick-ai/hooks/useQuickAi";
 
 type QuickAiModel = ReturnType<typeof useQuickAi>;
-
 export function useQuickAiSurface(
   close: () => void,
-  mission: QuickAiMissionSummary | null,
   session: QuickAiSession,
   model: QuickAiModel,
+  openWorkspaceContext: (trigger?: HTMLElement) => void,
 ) {
   const [isPresent, safeToRemove] = usePresence();
   const reducedMotion = Boolean(useReducedMotion());
-  const surfaceRef = useRef<HTMLDivElement>(null);
-  const draft = session.drafts[session.intent];
-
+  const surfaceRef = useRef<HTMLElement>(null);
+  const inputDraft = session.drafts[session.intent];
   const { surfaceMotion, contentMotion } = quickAiExpansionMotion(reducedMotion, isPresent);
   const handleAnimationComplete = useCallback(() => {
     if (!isPresent) safeToRemove?.();
   }, [isPresent, safeToRemove]);
-
   const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
+    (event: React.KeyboardEvent<HTMLElement>) => {
       if (event.key === "Escape") {
-        const openPicker = surfaceRef.current?.querySelector<HTMLDetailsElement>(
-          "[data-quick-ai-picker][open]",
-        );
-        if (openPicker) {
-          event.preventDefault();
-          openPicker.open = false;
-          openPicker.querySelector<HTMLElement>("summary")?.focus();
-          return;
-        }
         event.preventDefault();
         close();
         return;
       }
-
       if (event.key !== "Tab") return;
-      const focusable = surfaceRef.current?.querySelectorAll<HTMLElement>(
+      const items = surfaceRef.current?.querySelectorAll<HTMLElement>(
         'button:not(:disabled), textarea:not(:disabled), input:not(:disabled), summary, [tabindex="0"]',
       );
-      if (!focusable?.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      if (!items?.length) return;
+      const first = items[0]!;
+      const last = items[items.length - 1]!;
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -57,105 +43,69 @@ export function useQuickAiSurface(
     },
     [close],
   );
-
   const handleBackdropClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (
         event.target === event.currentTarget ||
         event.target === event.currentTarget.firstElementChild
-      ) {
+      )
         close();
-      }
     },
     [close],
   );
-
   const handleSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      model.submit();
+      void model.submit();
     },
     [model],
   );
   const handleInputChange = useCallback(
-    (event: React.ChangeEvent<HTMLTextAreaElement>) => model.updateDraft(event.currentTarget.value),
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => model.setInput(event.currentTarget.value),
     [model],
   );
   const handlePromptKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
         event.preventDefault();
-        model.submit();
+        void model.submit();
       }
     },
     [model],
   );
-  const handleApply = useCallback(() => model.applyPreview(), [model]);
-  const handleIntentSwitch = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      model.openQuickAi(
-        session.intent === "command" ? "new-mission" : "command",
-        event.currentTarget,
-      );
-    },
-    [model, session.intent],
+  const handleAttach = useCallback(() => {
+    void model.importFiles();
+  }, [model]);
+  const handlePasteChange = useCallback(
+    (event: React.ChangeEvent<HTMLTextAreaElement>) => model.setPaste(event),
+    [model],
   );
-  const handleMissionContext = useCallback(() => {
-    if (!mission) return;
-    model.addContext({ id: mission.id, label: mission.name, kind: "mission" });
-    const picker = surfaceRef.current?.querySelector<HTMLDetailsElement>(
-      "[data-quick-ai-picker][open]",
-    );
-    if (picker) {
-      picker.open = false;
-      picker.querySelector<HTMLElement>("summary")?.focus();
-    }
-  }, [mission, model]);
-  const handleEvidenceSelection = useCallback(
+  const handleAddPasted = useCallback(() => {
+    void model.addPastedContext();
+  }, [model]);
+  const handleRemoveSource = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
-      const evidence = mission?.evidence.find(
-        (item) => item.title === event.currentTarget.dataset.title,
-      );
-      if (evidence && mission) {
-        model.addContext({
-          id: `${mission.id}:evidence:${evidence.title}`,
-          label: evidence.title,
-          kind: "source",
-        });
-      }
-      const picker = event.currentTarget.closest<HTMLDetailsElement>("[data-quick-ai-picker]");
-      if (picker) {
-        picker.open = false;
-        picker.querySelector<HTMLElement>("summary")?.focus();
-      }
-    },
-    [mission, model],
-  );
-  const handleRemoveContext = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      model.removeContext(event.currentTarget.dataset.contextId ?? "");
+      void model.removeSource(event.currentTarget.dataset.sourceId ?? "");
     },
     [model],
   );
-  const handleFiles = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const files = [...(event.currentTarget.files ?? [])];
-      files.forEach((file) =>
-        model.addContext({
-          id: `file:${file.name}:${file.size}:${file.lastModified}`,
-          label: file.name,
-          kind: "file",
-        }),
-      );
-      event.currentTarget.value = "";
-    },
-    [model],
+  const handleReview = useCallback(() => model.review(), [model]);
+  const handleRetry = useCallback(() => {
+    void model.retry();
+  }, [model]);
+  const handleRefreshPlan = useCallback(() => model.refreshPlan(), [model]);
+  const handleCancel = useCallback(() => {
+    void model.cancelRequest();
+  }, [model]);
+  const handleOpenWorkspaceContext = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => openWorkspaceContext(event.currentTarget),
+    [openWorkspaceContext],
   );
-
+  const handleRefine = useCallback(() => model.refine(), [model]);
   return {
     surfaceRef,
     isPresent,
-    draft,
+    inputDraft,
     surfaceMotion,
     contentMotion,
     handleAnimationComplete,
@@ -164,11 +114,15 @@ export function useQuickAiSurface(
     handleSubmit,
     handleInputChange,
     handlePromptKeyDown,
-    handleApply,
-    handleIntentSwitch,
-    handleMissionContext,
-    handleEvidenceSelection,
-    handleRemoveContext,
-    handleFiles,
+    handleAttach,
+    handlePasteChange,
+    handleAddPasted,
+    handleRemoveSource,
+    handleReview,
+    handleRetry,
+    handleRefreshPlan,
+    handleCancel,
+    handleOpenWorkspaceContext,
+    handleRefine,
   };
 }

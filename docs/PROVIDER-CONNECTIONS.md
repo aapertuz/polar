@@ -9,10 +9,15 @@ If it expires, is cancelled, or the app restarts, start a fresh sign-in from
 Settings rather than reloading the old callback page. This sends only a short confirmation
 prompt and uses the selected account's ChatGPT allowance.
 
-Quick AI remains the sample preview. The connection does not yet run missions,
-tools, or background jobs. Claude subscription login is unavailable pending
-Anthropic approval for third-party products. Open-source distribution alone does
-not establish that approval; see the
+Quick AI uses the selected connected ChatGPT account and model for mission
+clarification and planning. The desktop sends inference through Rust; provider
+credentials stay in the OS credential store, and Polar does not fall back to a
+paid API key or another provider. Mission drafts, selected extracted context,
+proposals, and activation state sync to the authenticated development or
+production Polar server configured for that build. Original documents remain
+local. Claude subscription login is unavailable pending Anthropic approval for
+third-party products. Open-source distribution alone does not establish that
+approval; see the
 [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview).
 
 ## Accounts and credentials

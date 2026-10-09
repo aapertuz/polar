@@ -1,27 +1,25 @@
 import { motion } from "motion/react";
 import { Icon } from "@/components/ui/Icon";
-import type { QuickAiMissionSummary } from "@/features/quick-ai/types/quick-ai.types";
-import type {
-  QuickAiContextReference,
-  QuickAiSession,
-} from "@/features/quick-ai/utils/quickAiSession";
+import type { QuickAiSession } from "@/features/quick-ai/utils/quickAiSession";
 import { useQuickAiSurface } from "@/features/quick-ai/hooks/useQuickAiSurface";
 import type { useQuickAi } from "@/features/quick-ai/hooks/useQuickAi";
 import "@/features/quick-ai/styles/quick-ai.css";
 
 type QuickAiModel = ReturnType<typeof useQuickAi>;
-
-interface Props {
-  mission: QuickAiMissionSummary | null;
+export function QuickAiSurface({
+  session,
+  model,
+  openWorkspaceContext,
+}: {
+  mission: unknown;
   session: QuickAiSession;
   model: QuickAiModel;
-}
-
-export function QuickAiSurface({ mission, session, model }: Props) {
+  openWorkspaceContext: (trigger?: HTMLElement) => void;
+}) {
   const {
     surfaceRef,
     isPresent,
-    draft,
+    inputDraft,
     surfaceMotion,
     contentMotion,
     handleAnimationComplete,
@@ -30,13 +28,17 @@ export function QuickAiSurface({ mission, session, model }: Props) {
     handleSubmit,
     handleInputChange,
     handlePromptKeyDown,
-    handleApply,
-    handleIntentSwitch,
-    handleMissionContext,
-    handleEvidenceSelection,
-    handleRemoveContext,
-    handleFiles,
-  } = useQuickAiSurface(model.closeQuickAi, mission, session, model);
+    handleAttach,
+    handlePasteChange,
+    handleAddPasted,
+    handleRemoveSource,
+    handleReview,
+    handleRetry,
+    handleRefreshPlan,
+    handleCancel,
+    handleOpenWorkspaceContext,
+  } = useQuickAiSurface(model.closeQuickAi, session, model, openWorkspaceContext);
+  const { chat } = model;
 
   return (
     <motion.div
@@ -68,17 +70,11 @@ export function QuickAiSurface({ mission, session, model }: Props) {
             <div className="quick-ai-brand">
               <div>
                 <span className="quick-ai-eyebrow">POLAR / QUICK AI</span>
-                <h2 id="quick-ai-title">
-                  {session.intent === "command"
-                    ? (mission?.name ?? "Quick command")
-                    : "New mission"}
-                </h2>
+                <h2 id="quick-ai-title">{chat.goal ? "Mission conversation" : "New mission"}</h2>
               </div>
             </div>
             <div className="quick-ai-heading-actions">
-              <button className="quick-ai-mode-toggle" type="button" onClick={handleIntentSwitch}>
-                {session.intent === "command" ? "New mission" : "Quick command"}
-              </button>
+              {chat.id && <span className="quick-ai-draft-state">Draft saved</span>}
               <button
                 className="quick-ai-close"
                 type="button"
@@ -90,31 +86,77 @@ export function QuickAiSurface({ mission, session, model }: Props) {
             </div>
           </header>
 
+          <div className="quick-ai-conversation" aria-live="polite">
+            {chat.messages.map((message, index) => (
+              <article
+                className={`quick-ai-message ${message.role}`}
+                key={message.id ?? `${message.role}-${index}`}
+              >
+                <span>{message.role === "assistant" ? "POLAR" : "YOU"}</span>
+                <p>{message.content}</p>
+              </article>
+            ))}
+            {chat.request &&
+              ["queued", "claimed"].includes(chat.request.status) &&
+              !chat.failure && (
+                <div className="quick-ai-working" role="status">
+                  <span className="quick-ai-working-dot" />
+                  {chat.request.status === "claimed"
+                    ? "ChatGPT is building your plan"
+                    : "Waiting for your connected Polar desktop"}
+                  <button type="button" onClick={handleCancel}>
+                    Stop
+                  </button>
+                </div>
+              )}
+            {chat.request?.status === "failed" && (
+              <div className="quick-ai-error" role="status">
+                <span>
+                  {chat.request.errorMessage ?? "ChatGPT could not complete this request."}
+                </span>
+                <button type="button" onClick={handleRetry}>
+                  Retry with ChatGPT
+                </button>
+              </div>
+            )}
+            {chat.request?.status === "stale" && (
+              <div className="quick-ai-error" role="status">
+                <span>{chat.request.errorMessage}</span>
+                <button type="button" onClick={handleRefreshPlan}>
+                  Refresh plan
+                </button>
+              </div>
+            )}
+          </div>
+
           <form className="quick-ai-form" onSubmit={handleSubmit}>
             <label className="sr-only" htmlFor="quick-ai-input">
-              Ask Polar or describe what you want to accomplish
+              Describe the goal or reply to Polar
             </label>
             <textarea
               ref={model.inputRef}
               id="quick-ai-input"
-              value={draft.text}
+              value={inputDraft.text}
               onChange={handleInputChange}
               onKeyDown={handlePromptKeyDown}
               placeholder={
-                session.intent === "command"
-                  ? "Ask Polar or describe what you want to accomplish..."
-                  : undefined
+                chat.goal
+                  ? "Answer Polar or refine the goal…"
+                  : "What are you trying to accomplish?"
               }
               rows={2}
               spellCheck={false}
+              disabled={chat.loading || chat.request?.status === "claimed"}
             />
             <div className="quick-ai-composer-footer">
-              <span>Enter to preview</span>
+              <span>Enter to send · Shift + Enter for a new line</span>
               <button
                 className="quick-ai-submit"
                 type="submit"
-                disabled={!draft.text.trim()}
-                aria-label="Submit request"
+                disabled={
+                  !inputDraft.text.trim() || chat.loading || chat.request?.status === "claimed"
+                }
+                aria-label="Send message"
               >
                 <Icon name="arrow" size={16} />
               </button>
@@ -124,127 +166,113 @@ export function QuickAiSurface({ mission, session, model }: Props) {
           <div className="quick-ai-context-row">
             <span className="quick-ai-section-label">Using</span>
             <div className="quick-ai-chips" aria-label="Context in use">
-              {draft.context.length === 0 && (
+              <button
+                className="quick-ai-workspace-context"
+                type="button"
+                onClick={handleOpenWorkspaceContext}
+              >
+                Workspace context · inherited automatically
+              </button>
+              {chat.sources.length === 0 && (
                 <span className="quick-ai-no-context">No context selected</span>
               )}
-              {draft.context.map((reference) => (
-                <ContextChip
-                  key={reference.id}
-                  reference={reference}
-                  onRemove={handleRemoveContext}
-                />
+              {chat.sources.map((source) => (
+                <span className="quick-ai-chip" key={source.id}>
+                  <Icon name="file" size={13} />
+                  {source.fileName}
+                  <button
+                    type="button"
+                    data-source-id={source.id}
+                    aria-label={`Remove ${source.fileName}`}
+                    onClick={handleRemoveSource}
+                  >
+                    <Icon name="close" size={12} />
+                  </button>
+                </span>
               ))}
             </div>
           </div>
+          {chat.request?.contextManifest && (
+            <details className="quick-ai-source-coverage">
+              <summary>
+                Sources supplied to this run · workspace revision{" "}
+                {chat.request.contextManifest.workspaceRevision}
+              </summary>
+              {chat.request.contextManifest.sources.length ? (
+                <ul>
+                  {chat.request.contextManifest.sources.map((source) => (
+                    <li key={`${source.scope}-${source.id}`}>
+                      <strong>{source.scope === "workspace" ? "Workspace" : "Mission"}:</strong>{" "}
+                      {source.title} · revision {source.revision} · {source.excerptIds.length}{" "}
+                      excerpts supplied
+                      {source.omittedExcerptCount ? ` · ${source.omittedExcerptCount} omitted` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p>Only the workspace brief and mission conversation were supplied.</p>
+              )}
+              {chat.proposal?.citationReferences?.length ? (
+                <p>
+                  Cited by proposal:{" "}
+                  {chat.proposal.citationReferences
+                    .map((citation) => `${citation.scope} source ${citation.sourceId}`)
+                    .join(", ")}
+                </p>
+              ) : (
+                <p>This proposal did not cite a document excerpt.</p>
+              )}
+            </details>
+          )}
 
-          {draft.result && (
-            <section
-              className={`quick-ai-result ${draft.result.kind === "unsupported" ? "is-unsupported" : ""}`}
-              aria-live="polite"
-            >
-              <span className="quick-ai-result-status">
-                {draft.result.kind === "proposal" ? "PREVIEW PROPOSAL" : "PREVIEW LIMIT"}
-              </span>
-              <p>{draft.result.message}</p>
-              {draft.result.kind === "proposal" && (
-                <button
-                  className={draft.result.applied ? "quick-ai-applied" : "quick-ai-apply"}
-                  type="button"
-                  onClick={handleApply}
-                >
-                  {draft.result.applied ? (
-                    <>
-                      <Icon name="check" size={15} /> Preview applied · no workspace changes made
-                    </>
-                  ) : (
-                    <>
-                      Apply change <Icon name="arrow" size={15} />
-                    </>
-                  )}
+          {chat.failure && chat.request?.status !== "failed" && (
+            <section className="quick-ai-error" role="alert">
+              <p>{chat.failure}</p>
+              {chat.request && ["queued", "claimed", "cancelled"].includes(chat.request.status) && (
+                <button type="button" onClick={handleRetry}>
+                  Retry with ChatGPT
                 </button>
               )}
             </section>
           )}
+          {chat.proposal && (
+            <section className="quick-ai-result">
+              <span className="quick-ai-result-status">PLAN READY FOR REVIEW</span>
+              <p>{chat.proposal.content.recommendation}</p>
+              <button className="quick-ai-apply" type="button" onClick={handleReview}>
+                Review plan <Icon name="arrow" size={15} />
+              </button>
+            </section>
+          )}
 
           <footer className="quick-ai-actions">
-            <div className="quick-ai-picker-group">
-              <details className="quick-ai-picker" data-quick-ai-picker>
-                <summary>
-                  <Icon name="folder" size={15} /> Context
-                </summary>
-                <div className="quick-ai-picker-menu">
-                  <span>Mission context</span>
-                  {mission ? (
-                    <button type="button" onClick={handleMissionContext}>
-                      {mission.name}
-                    </button>
-                  ) : (
-                    <p className="quick-ai-no-context">No missions yet.</p>
-                  )}
-                </div>
-              </details>
-              <label className="quick-ai-action-button quick-ai-attach">
-                <Icon name="plus" size={15} /> Attach
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFiles}
-                  aria-label="Attach files for this preview"
-                />
-              </label>
-              <details className="quick-ai-picker" data-quick-ai-picker>
-                <summary>
-                  <Icon name="file" size={15} /> Sources
-                </summary>
-                <div className="quick-ai-picker-menu">
-                  <span>{mission?.name ?? "Workspace"} sources</span>
-                  {!mission?.evidence.length && (
-                    <p className="quick-ai-no-context">No sources yet.</p>
-                  )}
-                  {mission?.evidence.map((evidence) => (
-                    <button
-                      key={evidence.title}
-                      type="button"
-                      data-title={evidence.title}
-                      onClick={handleEvidenceSelection}
-                    >
-                      {evidence.title}
-                    </button>
-                  ))}
-                </div>
-              </details>
-            </div>
-            <span className="quick-ai-footer-note">Responses and changes are simulated.</span>
+            <button
+              className="quick-ai-action-button"
+              type="button"
+              onClick={handleAttach}
+              disabled={chat.loading}
+            >
+              <Icon name="plus" size={15} /> Attach context
+            </button>
+            <details className="quick-ai-paste-context">
+              <summary>Add pasted context</summary>
+              <textarea
+                value={model.pasteContext}
+                onChange={handlePasteChange}
+                aria-label="Pasted context"
+                placeholder="Paste notes, requirements, or relevant text…"
+                rows={3}
+              />
+              <button type="button" onClick={handleAddPasted}>
+                Add context
+              </button>
+            </details>
+            <span className="quick-ai-footer-note">
+              {chat.loading ? "Reading documents…" : "Original files stay on this device."}
+            </span>
           </footer>
         </motion.div>
       </motion.section>
     </motion.div>
-  );
-}
-
-function ContextChip({
-  reference,
-  onRemove,
-}: {
-  reference: QuickAiContextReference;
-  onRemove: (event: React.MouseEvent<HTMLButtonElement>) => void;
-}) {
-  return (
-    <span className="quick-ai-chip">
-      {reference.kind === "file" ? (
-        <Icon name="file" size={13} />
-      ) : (
-        <span className="quick-ai-chip-dot" />
-      )}
-      {reference.label}
-      <button
-        type="button"
-        aria-label={`Remove ${reference.label} context`}
-        data-context-id={reference.id}
-        onClick={onRemove}
-      >
-        <Icon name="close" size={12} />
-      </button>
-    </span>
   );
 }

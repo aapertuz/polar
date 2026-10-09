@@ -1,0 +1,1 @@
+ALTER TABLE "mission_action" ADD COLUMN "dependencies" jsonb DEFAULT '[]'::jsonb NOT NULL;

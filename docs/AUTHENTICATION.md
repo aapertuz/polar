@@ -43,6 +43,11 @@ Configure:
 | `POLAR_DESKTOP_CLIENT_ID` | Public client ID matching the desktop: `com.antoniopertuz.polar.desktop.development` in development, `com.antoniopertuz.polar.desktop` in production. |
 | `HOST`, `PORT` | Fastify bind address and port. Defaults are `127.0.0.1` and `3000`. |
 
+Mission reasoning is orchestrated by Inngest. Development connects to the local
+Inngest Dev Server and does not require Inngest credentials. Production requires
+`INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY`; Fastify refuses to start without
+both so mission events cannot silently accumulate in the outbox.
+
 `pnpm dev:server`, `pnpm dev:native`, and `pnpm dev` use development. The desktop
 launcher takes the public server origin/client ID from development configuration
 and does not pass database credentials or auth secrets to Tauri. Debug builds

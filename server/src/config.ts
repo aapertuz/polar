@@ -8,6 +8,8 @@ export interface ServerConfig {
   betterAuthSecret: string;
   betterAuthUrl: string;
   desktopClientId: string;
+  inngestEventKey?: string;
+  inngestSigningKey?: string;
 }
 
 export function getServerConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -59,7 +61,23 @@ export function getServerConfig(env: NodeJS.ProcessEnv = process.env): ServerCon
     throw new Error("POLAR_DESKTOP_CLIENT_ID must be a valid public client identifier.");
   }
 
-  return { environment, host, port, databaseUrl, betterAuthSecret, betterAuthUrl, desktopClientId };
+  const inngestEventKey = env.INNGEST_EVENT_KEY?.trim();
+  const inngestSigningKey = env.INNGEST_SIGNING_KEY?.trim();
+  if (environment === "production" && (!inngestEventKey || !inngestSigningKey)) {
+    throw new Error("INNGEST_EVENT_KEY and INNGEST_SIGNING_KEY must be configured in production.");
+  }
+
+  return {
+    environment,
+    host,
+    port,
+    databaseUrl,
+    betterAuthSecret,
+    betterAuthUrl,
+    desktopClientId,
+    inngestEventKey,
+    inngestSigningKey,
+  };
 }
 
 function required(env: NodeJS.ProcessEnv, name: string): string {

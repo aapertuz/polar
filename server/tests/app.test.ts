@@ -5,10 +5,12 @@ import type { PolarAuth } from "../src/auth.js";
 import type { ServerConfig } from "../src/config.js";
 import type { PolarDatabase } from "../src/db/client.js";
 import { createApp } from "../src/app.js";
+import { REASONING_RESULT_BODY_LIMIT } from "../src/request-limits.js";
 import {
   BootstrapResponseSchema,
   DeviceRegistrationRequestSchema,
   contractJsonSchemas,
+  ReasoningResultSchema,
 } from "@polar/contracts";
 
 const config: ServerConfig = {
@@ -49,6 +51,123 @@ test("GET /health returns a healthy JSON response", async () => {
     assert.deepEqual(response.json(), { status: "ok" });
   } finally {
     await app.close();
+  }
+});
+
+function reasoningTestApp() {
+  const { auth } = createAuth("reasoning-test-token");
+  let reads = 0;
+  const rows = [
+    [{ id: "user-1" }],
+    [{ userId: "user-1", workspaceId: "workspace-1" }],
+    [{ id: "registered-device-1" }],
+    [],
+  ];
+  const query = {
+    from() {
+      return this;
+    },
+    where() {
+      return this;
+    },
+    limit: async () => rows[reads++] ?? [],
+  };
+  return createApp({ auth, db: { select: () => query } as unknown as PolarDatabase, config });
+}
+
+function detailedReasoningResult() {
+  return {
+    deviceId: "11111111-1111-4111-8111-111111111111",
+    leaseToken: "22222222-2222-4222-8222-222222222222",
+    provider: "chatgpt",
+    model: "gpt-6.1-sol",
+    output: {
+      reply: "Review this detailed plan.",
+      questions: [],
+      citations: [],
+      proposal: {
+        name: "Deliver pilot",
+        outcome: "Deliver a successful pilot.",
+        successCriteria: [],
+        constraints: [],
+        deadlineAt: null,
+        assessment: "The pilot needs preparation.",
+        recommendation: "Prepare the pilot.",
+        risks: [],
+        assumptions: [],
+        checkpoints: Array.from({ length: 6 }, (_, checkpoint) => ({
+          name: `Checkpoint ${checkpoint}`,
+          detail: "c".repeat(900),
+          actions: Array.from({ length: 6 }, (_, action) => ({
+            title: `Action ${checkpoint}-${action}`,
+            detail: "a".repeat(900),
+            priority: "High",
+            dueOn: "2026-10-20",
+            dependsOn: [],
+          })),
+        })),
+      },
+    },
+  };
+}
+
+test("detailed reasoning results above 32 KiB reach the protected result handler", async () => {
+  const payload = detailedReasoningResult();
+  assert.equal(ReasoningResultSchema.safeParse(payload).success, true);
+  assert.ok(Buffer.byteLength(JSON.stringify(payload)) > 32 * 1024);
+  const app = reasoningTestApp();
+  try {
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/app/reasoning/missing-job/result",
+      headers: { authorization: "Bearer reasoning-test-token" },
+      payload,
+    });
+    assert.equal(response.statusCode, 404, response.body);
+    assert.equal(response.json().error, "REQUEST_NOT_FOUND");
+    const anonymous = await app.inject({
+      method: "POST",
+      url: "/api/app/reasoning/missing-job/result",
+      payload,
+    });
+    assert.equal(anonymous.statusCode, 401);
+    const ordinary = await app.inject({
+      method: "POST",
+      url: "/api/app/mission-drafts",
+      payload: { goal: "x".repeat(40_000) },
+    });
+    assert.equal(ordinary.statusCode, 413);
+    const oversized = await app.inject({
+      method: "POST",
+      url: "/api/app/reasoning/missing-job/result",
+      payload: { reply: "x".repeat(REASONING_RESULT_BODY_LIMIT) },
+    });
+    assert.equal(oversized.statusCode, 413);
+  } finally {
+    await app.close();
+  }
+});
+
+test("reasoning output violations are distinguished from invalid submission metadata", async () => {
+  for (const invalidOutput of [true, false]) {
+    const app = reasoningTestApp();
+    try {
+      const payload = detailedReasoningResult();
+      payload.output.proposal.checkpoints = payload.output.proposal.checkpoints.slice(0, 1);
+      if (invalidOutput) payload.output.proposal.checkpoints[0]!.detail = "sensitive".repeat(200);
+      else payload.leaseToken = "sensitive-invalid-token";
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/app/reasoning/missing-job/result",
+        headers: { authorization: "Bearer reasoning-test-token" },
+        payload,
+      });
+      assert.equal(response.statusCode, 400, response.body);
+      assert.equal(response.json().error, invalidOutput ? "INVALID_PLAN" : "INVALID_REQUEST");
+      assert.ok(!response.body.includes("sensitive"));
+    } finally {
+      await app.close();
+    }
   }
 });
 

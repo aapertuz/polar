@@ -12,6 +12,7 @@ import { ProposalOverlay } from "@/pages/home/components/overlays/ProposalOverla
 import { CalendarOverlay } from "@/pages/home/components/overlays/CalendarOverlay";
 import { DetailOverlay } from "@/pages/home/components/overlays/DetailOverlay";
 import { WindowMenuOverlay } from "@/pages/home/components/overlays/WindowMenuOverlay";
+import { WorkspaceContextSurface } from "@/features/workspace-context/components/WorkspaceContextSurface";
 export interface OverlayDefinition {
   Component: ComponentType<OverlayBodyProps>;
   title: string;
@@ -20,6 +21,11 @@ export interface OverlayDefinition {
 export const overlayRegistry: Record<OverlayKind, OverlayDefinition> = {
   search: { Component: SearchOverlay, title: "Find a mission", surface: "dialog" },
   launcher: { Component: LauncherOverlay, title: "Your workspace", surface: "popover" },
+  "workspace-context": {
+    Component: WorkspaceContextSurface,
+    title: "Workspace context",
+    surface: "dialog",
+  },
   documents: { Component: DocumentsOverlay, title: "Mission documents", surface: "popover" },
   settings: { Component: SettingsOverlay, title: "Settings", surface: "dialog" },
   notifications: {

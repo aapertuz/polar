@@ -21,6 +21,8 @@ test("server config validates identity and database inputs", () => {
     betterAuthSecret: validEnvironment.BETTER_AUTH_SECRET,
     betterAuthUrl: validEnvironment.BETTER_AUTH_URL,
     desktopClientId: validEnvironment.POLAR_DESKTOP_CLIENT_ID,
+    inngestEventKey: undefined,
+    inngestSigningKey: undefined,
   });
   assert.deepEqual(getServerConfig({ ...validEnvironment, HOST: "0.0.0.0", PORT: "8080" }), {
     environment: "development",
@@ -30,6 +32,8 @@ test("server config validates identity and database inputs", () => {
     betterAuthSecret: validEnvironment.BETTER_AUTH_SECRET,
     betterAuthUrl: validEnvironment.BETTER_AUTH_URL,
     desktopClientId: validEnvironment.POLAR_DESKTOP_CLIENT_ID,
+    inngestEventKey: undefined,
+    inngestSigningKey: undefined,
   });
 });
 
@@ -153,8 +157,14 @@ test("production requires explicit matching database and HTTPS authentication se
     NEON_BRANCH: "production",
     DATABASE_URL: `postgresql://polar:secret@${environmentTargets.production.databaseHost}/${environmentTargets.production.databaseName}?sslmode=require`,
     BETTER_AUTH_URL: "https://polar.example.test",
+    INNGEST_EVENT_KEY: "event-key",
+    INNGEST_SIGNING_KEY: "signing-key",
   };
   assert.equal(getServerConfig(production).environment, "production");
+  assert.throws(
+    () => getServerConfig({ ...production, INNGEST_EVENT_KEY: undefined }),
+    /INNGEST_EVENT_KEY/,
+  );
   assert.throws(
     () => getServerConfig({ ...production, NEON_BRANCH: "development" }),
     /NEON_BRANCH/,

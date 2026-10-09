@@ -17,6 +17,7 @@ interface Props {
 }
 export function LauncherOverlay({ request, choose, open }: Props) {
   const { handleChoose, openSettings } = useLauncherOverlay(request, choose, open);
+  const openWorkspaceContext = () => open({ kind: "workspace-context" });
   return (
     <>
       <p className="overlay-muted">Three missions. One place to stay oriented.</p>
@@ -32,6 +33,10 @@ export function LauncherOverlay({ request, choose, open }: Props) {
         ))}
       </div>
       <div className="window-menu">
+        <button onClick={openWorkspaceContext}>
+          <Icon name="file" size={18} />
+          Workspace context
+        </button>
         <button onClick={openSettings}>
           <Icon name="settings" size={18} />
           Settings

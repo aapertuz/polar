@@ -1,6 +1,7 @@
 mod commands;
 mod oauth;
 mod openai;
+mod scheduling;
 mod store;
 mod types;
 

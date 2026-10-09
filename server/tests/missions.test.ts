@@ -1,0 +1,252 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  MissionInterpreterOutputSchema,
+  MissionPlanSchema,
+  WorkspaceContextSourceMutationSchema,
+} from "@polar/contracts";
+import {
+  hasValidDependencies,
+  makeChunks,
+  selectChunks,
+  validCitations,
+  type ContextManifest,
+} from "../src/missions.js";
+
+const plan = {
+  name: "Prepare launch",
+  outcome: "Release the new service safely.",
+  successCriteria: ["The service is available to customers."],
+  constraints: ["Keep the current API compatible."],
+  deadlineAt: null,
+  assessment: "The implementation is ready for a staged release.",
+  recommendation: "Verify the production candidate before release.",
+  checkpoints: [
+    {
+      name: "Validate",
+      detail: "Confirm release readiness.",
+      actions: [
+        {
+          title: "Run smoke checks",
+          detail: "Check the main paths.",
+          priority: "High" as const,
+          dependsOn: [],
+        },
+        {
+          title: "Publish release",
+          detail: "Release after verification.",
+          priority: "Medium" as const,
+          dependsOn: ["Run smoke checks"],
+        },
+      ],
+    },
+  ],
+  risks: [],
+  assumptions: [],
+};
+
+test("mission proposal contract requires structured clarification and complete plan fields", () => {
+  assert.equal(MissionPlanSchema.safeParse(plan).success, true);
+  assert.equal(MissionPlanSchema.safeParse({ ...plan, unsupported: true }).success, false);
+  assert.equal(
+    MissionInterpreterOutputSchema.safeParse({
+      reply: "What is the target date?",
+      questions: ["What is the target date?"],
+      proposal: null,
+      citations: [],
+    }).success,
+    true,
+  );
+  assert.equal(
+    MissionInterpreterOutputSchema.safeParse({
+      reply: "Ready",
+      questions: [],
+      proposal: { ...plan, checkpoints: [] },
+      citations: [],
+    }).success,
+    false,
+  );
+});
+
+test("proposal dependencies require known unique actions and an acyclic graph", () => {
+  assert.equal(hasValidDependencies(plan), true);
+  assert.equal(
+    hasValidDependencies({
+      ...plan,
+      checkpoints: [
+        {
+          ...plan.checkpoints[0]!,
+          actions: [
+            plan.checkpoints[0]!.actions[0]!,
+            { ...plan.checkpoints[0]!.actions[1]!, dependsOn: ["Missing action"] },
+          ],
+        },
+      ],
+    }),
+    false,
+  );
+  assert.equal(
+    hasValidDependencies({
+      ...plan,
+      checkpoints: [
+        {
+          ...plan.checkpoints[0]!,
+          actions: [
+            { ...plan.checkpoints[0]!.actions[0]!, dependsOn: ["Run smoke checks"] },
+            { ...plan.checkpoints[0]!.actions[1]!, dependsOn: ["Run smoke checks"] },
+          ],
+        },
+      ],
+    }),
+    false,
+  );
+  assert.equal(
+    hasValidDependencies({
+      ...plan,
+      checkpoints: [
+        {
+          ...plan.checkpoints[0]!,
+          actions: [
+            plan.checkpoints[0]!.actions[0]!,
+            { ...plan.checkpoints[0]!.actions[1]!, title: "Run smoke checks" },
+          ],
+        },
+      ],
+    }),
+    false,
+  );
+});
+
+test("workspace excerpts are relevance-ranked, bounded, and repeatable", () => {
+  const sourceId = "11111111-1111-4111-8111-111111111111";
+  const source = makeChunks(
+    "workspace",
+    sourceId,
+    2,
+    "Unrelated staffing history.\n\nThe launch requires a customer pilot and a rollback owner.",
+    "Launch policy",
+    "a".repeat(64),
+    "note",
+  );
+  const first = selectChunks([source], "customer pilot rollback", 65);
+  const second = selectChunks([source], "customer pilot rollback", 65);
+  assert.deepEqual(
+    first.map(({ excerptId, text }) => ({ excerptId, text })),
+    second.map(({ excerptId, text }) => ({ excerptId, text })),
+  );
+  assert.equal(first.reduce((sum, chunk) => sum + chunk.text.length, 0) <= 65, true);
+  assert.equal(first[0]?.text.includes("customer pilot"), true);
+});
+
+test("model citations must identify an excerpt from this scoped context manifest", () => {
+  const manifest: ContextManifest = {
+    schemaVersion: 1,
+    workspaceId: "workspace-1",
+    workspaceRevision: 3,
+    audience: "workspace:workspace-1",
+    requestedBy: "user-1",
+    briefHash: "b".repeat(64),
+    sources: [
+      {
+        scope: "workspace",
+        id: "11111111-1111-4111-8111-111111111111",
+        title: "Policy",
+        revision: 2,
+        contentHash: "a".repeat(64),
+        excerptIds: ["policy-part-1"],
+        omittedExcerptCount: 1,
+        provenance: "note",
+      },
+    ],
+  };
+  assert.equal(
+    validCitations(
+      [
+        {
+          scope: "workspace",
+          sourceId: manifest.sources[0]!.id,
+          revision: 2,
+          excerptId: "policy-part-1",
+        },
+      ],
+      manifest,
+    ),
+    true,
+  );
+  assert.equal(
+    validCitations(
+      [
+        {
+          scope: "mission",
+          sourceId: manifest.sources[0]!.id,
+          revision: 2,
+          excerptId: "policy-part-1",
+        },
+      ],
+      manifest,
+    ),
+    false,
+  );
+  assert.equal(
+    validCitations(
+      [
+        {
+          scope: "workspace",
+          sourceId: manifest.sources[0]!.id,
+          revision: 1,
+          excerptId: "policy-part-1",
+        },
+      ],
+      manifest,
+    ),
+    false,
+  );
+  assert.equal(
+    validCitations(
+      [
+        {
+          scope: "workspace",
+          sourceId: manifest.sources[0]!.id,
+          revision: 2,
+          excerptId: "not-supplied",
+        },
+      ],
+      manifest,
+    ),
+    false,
+  );
+});
+
+test("workspace source input rejects oversized notes and mismatched content fields", () => {
+  const source = {
+    id: "11111111-1111-4111-8111-111111111111",
+    kind: "note" as const,
+    title: "Policy",
+    fileName: null,
+    contentHash: null,
+    extractedText: "Keep releases reversible.",
+  };
+  assert.equal(WorkspaceContextSourceMutationSchema.safeParse({ source }).success, true);
+  assert.equal(
+    WorkspaceContextSourceMutationSchema.safeParse({
+      source: { ...source, extractedText: "x".repeat(100_001) },
+    }).success,
+    false,
+  );
+});
+
+test("action dates validate real calendar dates while older proposals remain compatible", () => {
+  const withDate = (dueOn: unknown) => ({
+    ...plan,
+    checkpoints: [
+      { ...plan.checkpoints[0], actions: [{ ...plan.checkpoints[0]!.actions[0], dueOn }] },
+    ],
+  });
+  assert.equal(MissionPlanSchema.safeParse(plan).success, true);
+  assert.equal(MissionPlanSchema.safeParse(withDate(null)).success, true);
+  assert.equal(MissionPlanSchema.safeParse(withDate("2026-10-13")).success, true);
+  assert.equal(MissionPlanSchema.safeParse(withDate("2028-02-29")).success, true);
+  for (const dueOn of ["Next", "2026-02-30", "2026-10-13T00:00:00Z", "2026-13-01"]) {
+    assert.equal(MissionPlanSchema.safeParse(withDate(dueOn)).success, false);
+  }
+});

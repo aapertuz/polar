@@ -7,6 +7,28 @@ use tokio_util::sync::CancellationToken;
 
 const DESKTOP_LABEL: &str = "This Polar desktop";
 
+pub(crate) struct InternalSession {
+    pub access_token: String,
+    pub device_id: String,
+    pub workspace_id: String,
+}
+
+pub(crate) async fn internal_session(state: &ApplicationAuthState) -> Result<InternalSession> {
+    let (guard, cancel) = state.begin_serialized().await?;
+    let (_guard, vault) = store::load(guard, &cancel, &state.credential_scope).await?;
+    let session = vault.session.ok_or_else(|| {
+        AuthError::new(
+            "not_signed_in",
+            "Sign in to Polar before creating a mission.",
+        )
+    })?;
+    Ok(InternalSession {
+        access_token: session.access_token,
+        device_id: vault.device_id,
+        workspace_id: session.workspace_id,
+    })
+}
+
 #[derive(Deserialize)]
 struct DeviceCodeResponse {
     device_code: String,

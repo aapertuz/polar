@@ -24,17 +24,19 @@ export function MissionCard({
         <strong>{mission.name}</strong>
         <span>{mission.outcome}</span>
       </span>
-      <ProgressRing value={mission.progress} />
-      <span className="mission-card-date">
-        <Icon name="calendar" size={16} />
-        {mission.deadline}
-        <span>·</span>
-        {countdown
-          ? countdown.expired
-            ? "Deadline reached"
-            : `${countdown.days} days left`
-          : "No deadline"}
-      </span>
+      {mission.progress !== undefined && <ProgressRing value={mission.progress} />}
+      {mission.deadline && (
+        <span className="mission-card-date">
+          <Icon name="calendar" size={16} />
+          {mission.deadline}
+          <span>·</span>
+          {countdown
+            ? countdown.expired
+              ? "Deadline reached"
+              : `${countdown.days} days left`
+            : "No deadline"}
+        </span>
+      )}
     </button>
   );
 }

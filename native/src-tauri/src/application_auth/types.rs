@@ -249,6 +249,11 @@ impl ApplicationAuthState {
         self.finish_begin(local)
     }
 
+    pub async fn begin_serialized(&self) -> Result<(OperationGuard, CancellationToken)> {
+        let local = self.gate.clone().lock_owned().await;
+        self.finish_begin(local)
+    }
+
     pub async fn begin_disconnect(&self) -> Result<(OperationGuard, CancellationToken)> {
         self.cancel()?;
         let local = self.gate.clone().lock_owned().await;

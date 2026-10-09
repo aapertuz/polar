@@ -9,7 +9,7 @@ Created: 2026-10-07
 Provide real Polar application sign-in using Better Auth, independently of the ChatGPT
 account used for inference. This plan delivers the identity and persistence
 foundation required by the separate
-[AI mission creation plan](../active/2026-10-07-ai-mission-creation.md).
+[AI mission creation plan](2026-10-07-ai-mission-creation.md).
 
 Confirmed requirements:
 

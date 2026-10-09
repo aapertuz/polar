@@ -2,12 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   addQuickAiContext,
-  applyQuickAiPreview,
   closeQuickAiSession,
   createQuickAiSession,
   openQuickAiSession,
   removeQuickAiContext,
-  submitQuickAiPrompt,
   updateQuickAiDraft,
 } from "../src/features/quick-ai/utils/quickAiSession.ts";
 
@@ -23,7 +21,7 @@ test("command and new mission keep separate drafts and context", () => {
   const returned = openQuickAiSession(newMission, "command");
 
   assert.equal(newMission.drafts.command.text, "Move the deadline");
-  assert.equal(newMission.drafts["new-mission"].text, "What are you trying to accomplish?");
+  assert.equal(newMission.drafts["new-mission"].text, "");
   assert.deepEqual(newMission.drafts["new-mission"].context, []);
   assert.equal(returned.drafts.command.text, "Move the deadline");
   assert.deepEqual(returned.drafts.command.context, [
@@ -74,18 +72,7 @@ test("context selection adds once and removal excludes the reference", () => {
   ]);
 });
 
-test("the supported preview can be applied once and arbitrary prompts stay unsupported", () => {
-  const opened = openQuickAiSession(createQuickAiSession(), "command");
-  const supported = submitQuickAiPrompt(
-    updateQuickAiDraft(opened, "Nick moved the event to Nov 22."),
-  );
-  const applied = applyQuickAiPreview(supported);
-  const repeated = applyQuickAiPreview(applied);
-  const unsupported = submitQuickAiPrompt(updateQuickAiDraft(opened, "Write a poem"));
-
-  assert.equal(supported.drafts.command.result?.kind, "proposal");
-  assert.match(supported.drafts.command.result?.message ?? "", /3 actions will move/);
-  assert.equal(applied.drafts.command.result?.applied, true);
-  assert.equal(repeated, applied);
-  assert.equal(unsupported.drafts.command.result?.kind, "unsupported");
+test("new mission opens with an empty prompt rather than simulated content", () => {
+  const opened = openQuickAiSession(createQuickAiSession(), "new-mission");
+  assert.equal(opened.drafts["new-mission"].text, "");
 });

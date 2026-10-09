@@ -1,6 +1,70 @@
 use super::{oauth, openai, store, types::*};
+use crate::application_auth::{internal_session, ApplicationAuthState};
 use serde::Serialize;
 use tauri::State;
+
+fn mission_result_error(status: reqwest::StatusCode, body: &[u8]) -> &'static str {
+    if status == reqwest::StatusCode::PAYLOAD_TOO_LARGE {
+        return "The generated plan exceeded Polar's result size limit. Retry to generate it again.";
+    }
+    if status.is_server_error() {
+        return "Polar's server could not save the ChatGPT result. Retry when the server is available.";
+    }
+    let code = mission_result_error_code(body);
+    match code {
+        Some("INVALID_SCHEDULE") => {
+            "Polar rejected the schedule because its dates conflict with checkpoint deadlines or action prerequisites. Retry to generate a new schedule."
+        }
+        Some("INVALID_DEPENDENCIES") => {
+            "Polar rejected the plan because its action dependencies are inconsistent. Retry to generate it again."
+        }
+        Some("INVALID_PLAN") => {
+            "Polar rejected the plan structure. Retry to generate it again."
+        }
+        Some("INVALID_REQUEST") => {
+            "Polar could not submit the ChatGPT result. Restart the desktop app and retry."
+        }
+        Some("WORKSPACE_CONTEXT_CHANGED") => {
+            "Workspace context changed while ChatGPT was working. Refresh the plan and retry."
+        }
+        Some("INVALID_CITATION") => {
+            "ChatGPT cited a source excerpt that was not supplied. Retry to generate it again."
+        }
+        Some("LEASE_EXPIRED") => {
+            "This request expired before its result could be saved. Retry to run it again."
+        }
+        Some("DEVICE_REQUIRED") => {
+            "This device is no longer registered to your Polar account. Reconnect and retry."
+        }
+        Some("REQUEST_CHANGED") if status == reqwest::StatusCode::CONFLICT => {
+            "This request changed while ChatGPT was working. Review the latest conversation and retry."
+        }
+        _ => "Polar could not validate the ChatGPT result. Retry to generate it again.",
+    }
+}
+
+fn mission_result_error_code(body: &[u8]) -> Option<&'static str> {
+    let code = serde_json::from_slice::<serde_json::Value>(body)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("error")
+                .and_then(serde_json::Value::as_str)
+                .map(str::to_owned)
+        });
+    match code.as_deref() {
+        Some("INVALID_SCHEDULE") => Some("INVALID_SCHEDULE"),
+        Some("INVALID_DEPENDENCIES") => Some("INVALID_DEPENDENCIES"),
+        Some("INVALID_PLAN") => Some("INVALID_PLAN"),
+        Some("INVALID_REQUEST") => Some("INVALID_REQUEST"),
+        Some("WORKSPACE_CONTEXT_CHANGED") => Some("WORKSPACE_CONTEXT_CHANGED"),
+        Some("INVALID_CITATION") => Some("INVALID_CITATION"),
+        Some("LEASE_EXPIRED") => Some("LEASE_EXPIRED"),
+        Some("DEVICE_REQUIRED") => Some("DEVICE_REQUIRED"),
+        Some("REQUEST_CHANGED") => Some("REQUEST_CHANGED"),
+        _ => None,
+    }
+}
 
 #[tauri::command]
 pub async fn chatgpt_status(state: State<'_, ProviderState>) -> Result<ConnectionStatus> {
@@ -166,6 +230,152 @@ pub async fn chatgpt_test(state: State<'_, ProviderState>) -> Result<String> {
     tokio::select! { biased; _ = cancel.cancelled() => Err(ProviderError::cancelled()), result = work => result }
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReasoningClaim {
+    job: Option<ReasoningJob>,
+}
+
+#[derive(serde::Deserialize)]
+struct ReasoningJob {
+    id: String,
+    payload: serde_json::Value,
+    #[serde(rename = "leaseToken")]
+    lease_token: String,
+}
+
+#[tauri::command]
+pub async fn polar_ai_work_once(
+    provider: State<'_, ProviderState>,
+    auth: State<'_, ApplicationAuthState>,
+) -> std::result::Result<String, String> {
+    let account = internal_session(&auth)
+        .await
+        .map_err(|error| error.message)?;
+    let (guard, cancel) = provider
+        .begin()
+        .map_err(|error| error.message.to_string())?;
+    let (_guard, mut vault) = store::load(guard, &cancel)
+        .await
+        .map_err(|error| error.message.to_string())?;
+    let model = vault
+        .active()
+        .map_err(|error| error.message.to_string())?
+        .model
+        .clone()
+        .ok_or_else(|| {
+            "Choose an available ChatGPT model in Settings before creating a mission.".to_string()
+        })?;
+    let access_token = openai::access(&provider.client, &mut vault)
+        .await
+        .map_err(|error| error.message.to_string())?;
+
+    let claim_url = auth
+        .api_url
+        .join("api/app/reasoning/claim")
+        .map_err(|_| "Polar server URL is invalid.".to_string())?;
+    let claim = tokio::select! {
+        biased;
+        _ = cancel.cancelled() => return Err(ProviderError::cancelled().message.into()),
+        response = provider.client.get(claim_url).bearer_auth(&account.access_token)
+            .header("x-polar-workspace-id", &account.workspace_id)
+            .header("x-polar-device-id", &account.device_id).send() => response.map_err(|_| ProviderError::network().message.to_string())?,
+    };
+    if !claim.status().is_success() {
+        return Err("Polar could not check for mission work. Retry when connected.".into());
+    }
+    let claim: ReasoningClaim = claim
+        .json()
+        .await
+        .map_err(|_| "Polar returned an invalid mission request.".to_string())?;
+    let Some(job) = claim.job else {
+        return Ok("idle".into());
+    };
+
+    let inference = tokio::select! {
+        biased;
+        _ = cancel.cancelled() => Err(ProviderError::cancelled()),
+        result = openai::mission_reasoning(&provider.client, &access_token, &model, &job.payload) => result,
+    };
+    match inference {
+        Ok(output) => {
+            let result_url = auth
+                .api_url
+                .join(&format!("api/app/reasoning/{}/result", job.id))
+                .map_err(|_| "Polar server URL is invalid.".to_string())?;
+            let response = provider.client.post(result_url).bearer_auth(&account.access_token)
+                .header("x-polar-workspace-id", &account.workspace_id)
+                .json(&serde_json::json!({ "deviceId": account.device_id, "leaseToken": job.lease_token, "output": output, "provider": "chatgpt", "model": model }))
+                .send().await.map_err(|_| "Polar could not save the result. It will be safe to retry after the worker lease expires.".to_string())?;
+            if response.status().is_success() {
+                Ok("completed".into())
+            } else {
+                let status = response.status();
+                let body = openai::bytes(response).await.unwrap_or_default();
+                let message = mission_result_error(status, &body);
+                let error_code = if status == reqwest::StatusCode::PAYLOAD_TOO_LARGE {
+                    Some("RESULT_TOO_LARGE")
+                } else {
+                    mission_result_error_code(&body)
+                };
+                eprintln!(
+                    "polar reasoning failed request_id={} stage=submission status={} code={}",
+                    job.id,
+                    status.as_u16(),
+                    error_code.unwrap_or("unknown")
+                );
+                if status == reqwest::StatusCode::BAD_REQUEST
+                    || status == reqwest::StatusCode::PAYLOAD_TOO_LARGE
+                {
+                    if let Ok(failure_url) = auth
+                        .api_url
+                        .join(&format!("api/app/reasoning/{}/failure", job.id))
+                    {
+                        let _ = provider
+                            .client
+                            .post(failure_url)
+                            .bearer_auth(&account.access_token)
+                            .header("x-polar-workspace-id", &account.workspace_id)
+                            .header("x-polar-device-id", &account.device_id)
+                            .json(&serde_json::json!({ "leaseToken": job.lease_token, "errorCode": error_code }))
+                            .send()
+                            .await;
+                    }
+                }
+                Err(message.into())
+            }
+        }
+        Err(error) => {
+            // Only locally defined codes and correlation IDs enter diagnostics.
+            // Never log provider bodies, source text, or credentials.
+            eprintln!(
+                "polar reasoning failed request_id={} stage=inference code={}",
+                job.id, error.code
+            );
+            if let Ok(failure_url) = auth
+                .api_url
+                .join(&format!("api/app/reasoning/{}/failure", job.id))
+            {
+                let _ = provider
+                    .client
+                    .post(failure_url)
+                    .bearer_auth(&account.access_token)
+                    .header("x-polar-workspace-id", &account.workspace_id)
+                    .header("x-polar-device-id", &account.device_id)
+                    .json(&serde_json::json!({ "leaseToken": job.lease_token }))
+                    .send()
+                    .await;
+            }
+            Err(error.message.to_string())
+        }
+    }
+}
+
+#[tauri::command]
+pub fn polar_ai_cancel(provider: State<'_, ProviderState>) -> Result<()> {
+    provider.cancel()
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DisconnectResult {
@@ -232,4 +442,56 @@ pub async fn chatgpt_disconnect(
         status: vault.status(),
         revocation_confirmed: confirmed,
     })
+}
+
+#[cfg(test)]
+mod mission_result_error_tests {
+    use super::mission_result_error;
+
+    #[test]
+    fn validation_errors_explain_the_rejected_plan_part() {
+        assert!(mission_result_error(
+            reqwest::StatusCode::BAD_REQUEST,
+            br#"{"error":"INVALID_SCHEDULE"}"#,
+        )
+        .contains("checkpoint deadlines"));
+        assert!(mission_result_error(
+            reqwest::StatusCode::BAD_REQUEST,
+            br#"{"error":"INVALID_DEPENDENCIES"}"#,
+        )
+        .contains("dependencies"));
+        assert!(mission_result_error(
+            reqwest::StatusCode::BAD_REQUEST,
+            br#"{"error":"INVALID_PLAN"}"#,
+        )
+        .contains("structure"));
+    }
+
+    #[test]
+    fn unknown_error_bodies_do_not_leak_server_text() {
+        assert_eq!(
+            mission_result_error(
+                reqwest::StatusCode::BAD_REQUEST,
+                br#"{"error":"SECRET","message":"sensitive details"}"#,
+            ),
+            "Polar could not validate the ChatGPT result. Retry to generate it again."
+        );
+    }
+
+    #[test]
+    fn transport_and_submission_failures_are_not_plan_validation_errors() {
+        assert!(
+            mission_result_error(reqwest::StatusCode::PAYLOAD_TOO_LARGE, b"private")
+                .contains("size limit")
+        );
+        assert!(
+            mission_result_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, b"private")
+                .contains("server could not save")
+        );
+        assert!(mission_result_error(
+            reqwest::StatusCode::BAD_REQUEST,
+            br#"{"error":"INVALID_REQUEST"}"#
+        )
+        .contains("submit"));
+    }
 }

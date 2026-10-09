@@ -7,14 +7,9 @@ export interface QuickAiContextReference {
   kind: QuickAiContextKind;
 }
 
-export type QuickAiResult =
-  | { kind: "proposal"; message: string; applied: boolean }
-  | { kind: "unsupported"; message: string };
-
 export interface QuickAiDraft {
   text: string;
   context: QuickAiContextReference[];
-  result: QuickAiResult | null;
 }
 
 export interface QuickAiSession {
@@ -30,8 +25,8 @@ export function createQuickAiSession(): QuickAiSession {
     initializedIntents: { command: false, "new-mission": false },
     intent: "command",
     drafts: {
-      command: { text: "", context: [], result: null },
-      "new-mission": { text: "What are you trying to accomplish?", context: [], result: null },
+      command: { text: "", context: [] },
+      "new-mission": { text: "", context: [] },
     },
   };
 }
@@ -67,7 +62,7 @@ export function updateQuickAiDraft(session: QuickAiSession, text: string): Quick
     ...session,
     drafts: {
       ...session.drafts,
-      [session.intent]: { ...draft, text, result: null },
+      [session.intent]: { ...draft, text },
     },
   };
 }
@@ -94,37 +89,6 @@ export function removeQuickAiContext(session: QuickAiSession, id: string): Quick
     drafts: {
       ...session.drafts,
       [session.intent]: { ...draft, context: draft.context.filter((item) => item.id !== id) },
-    },
-  };
-}
-
-export function submitQuickAiPrompt(session: QuickAiSession): QuickAiSession {
-  const draft = session.drafts[session.intent];
-  if (!draft.text.trim()) return session;
-
-  const result: QuickAiResult =
-    session.intent === "command" && draft.text.trim() === "Nick moved the event to Nov 22."
-      ? {
-          kind: "proposal",
-          message: "I can update the deadline and adjust the execution plan. 3 actions will move.",
-          applied: false,
-        }
-      : { kind: "unsupported", message: "Preview is available for the sample deadline update." };
-
-  return {
-    ...session,
-    drafts: { ...session.drafts, [session.intent]: { ...draft, result } },
-  };
-}
-
-export function applyQuickAiPreview(session: QuickAiSession): QuickAiSession {
-  const draft = session.drafts[session.intent];
-  if (draft.result?.kind !== "proposal" || draft.result.applied) return session;
-  return {
-    ...session,
-    drafts: {
-      ...session.drafts,
-      [session.intent]: { ...draft, result: { ...draft.result, applied: true } },
     },
   };
 }

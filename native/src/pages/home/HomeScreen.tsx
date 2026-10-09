@@ -31,6 +31,7 @@ export function HomeScreen() {
     quickAiMission,
     openQuickAiCommand,
     openQuickAiNewMission,
+    openWorkspaceContext,
   } = model;
   return (
     <MotionConfig reducedMotion="user" transition={HOME_MOTION}>
@@ -107,7 +108,12 @@ export function HomeScreen() {
           ))}
         <AnimatePresence>
           {quickAi.session.opened && (
-            <QuickAiSurface mission={quickAiMission} session={quickAi.session} model={quickAi} />
+            <QuickAiSurface
+              mission={quickAiMission}
+              session={quickAi.session}
+              model={quickAi}
+              openWorkspaceContext={openWorkspaceContext}
+            />
           )}
         </AnimatePresence>
       </main>

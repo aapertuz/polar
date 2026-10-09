@@ -4,6 +4,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -133,6 +134,47 @@ export const workspaceMembership = pgTable(
   ],
 );
 
+export const workspaceContext = pgTable("workspace_context", {
+  workspaceId: text("workspace_id")
+    .primaryKey()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  brief: text("brief").notNull().default(""),
+  revision: integer("revision").notNull().default(1),
+  updatedAt: timestampColumn("updated_at").notNull().defaultNow(),
+});
+
+export const workspaceContextSource = pgTable(
+  "workspace_context_source",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    fileName: text("file_name"),
+    contentHash: text("content_hash"),
+    extractedText: text("extracted_text").notNull(),
+    revision: integer("revision").notNull().default(1),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => polarUser.id, { onDelete: "cascade" }),
+    updatedBy: text("updated_by")
+      .notNull()
+      .references(() => polarUser.id, { onDelete: "cascade" }),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+    updatedAt: timestampColumn("updated_at").notNull().defaultNow(),
+    archivedAt: timestampColumn("archived_at"),
+  },
+  (table) => [
+    index("workspace_context_source_active_idx").on(table.workspaceId, table.archivedAt),
+    uniqueIndex("workspace_context_source_hash_uq")
+      .on(table.workspaceId, table.contentHash)
+      .where(sql`${table.archivedAt} is null`),
+    check("workspace_context_source_kind_check", sql`${table.kind} in ('document', 'note')`),
+  ],
+);
+
 export const registeredDevice = pgTable(
   "registered_device",
   {
@@ -150,3 +192,173 @@ export const registeredDevice = pgTable(
     index("registered_device_user_id_idx").on(table.userId),
   ],
 );
+
+export const missionDraft = pgTable("mission_draft", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => polarUser.id, { onDelete: "cascade" }),
+  goal: text("goal").notNull(),
+  status: text("status").notNull().default("draft"),
+  proposalRevision: integer("proposal_revision").notNull().default(0),
+  createdAt: timestampColumn("created_at").notNull().defaultNow(),
+  updatedAt: timestampColumn("updated_at").notNull().defaultNow(),
+});
+
+export const missionMessage = pgTable(
+  "mission_message",
+  {
+    id: text("id").primaryKey(),
+    draftId: text("draft_id")
+      .notNull()
+      .references(() => missionDraft.id, { onDelete: "cascade" }),
+    role: text("role").notNull(),
+    content: text("content").notNull(),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+  },
+  (table) => [index("mission_message_draft_created_idx").on(table.draftId, table.createdAt)],
+);
+
+export const missionSource = pgTable(
+  "mission_source",
+  {
+    id: text("id").primaryKey(),
+    draftId: text("draft_id")
+      .notNull()
+      .references(() => missionDraft.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    contentHash: text("content_hash").notNull(),
+    extractedText: text("extracted_text").notNull(),
+    provenance: text("provenance").notNull(),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("mission_source_draft_hash_uq").on(table.draftId, table.contentHash)],
+);
+
+export const reasoningRequest = pgTable(
+  "reasoning_request",
+  {
+    id: text("id").primaryKey(),
+    draftId: text("draft_id")
+      .notNull()
+      .references(() => missionDraft.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => polarUser.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspace.id, { onDelete: "cascade" }),
+    payload: jsonb("payload").notNull(),
+    contextManifest: jsonb("context_manifest"),
+    status: text("status").notNull().default("queued"),
+    leaseToken: text("lease_token"),
+    leaseExpiresAt: timestampColumn("lease_expires_at"),
+    errorMessage: text("error_message"),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+    updatedAt: timestampColumn("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("reasoning_request_workspace_status_idx").on(
+      table.workspaceId,
+      table.status,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const missionProposal = pgTable(
+  "mission_proposal",
+  {
+    id: text("id").primaryKey(),
+    draftId: text("draft_id")
+      .notNull()
+      .references(() => missionDraft.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    revisionHash: text("revision_hash").notNull(),
+    content: jsonb("content").notNull(),
+    contextManifest: jsonb("context_manifest"),
+    citationReferences: jsonb("citation_references").notNull().default([]),
+    status: text("status").notNull().default("current"),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("mission_proposal_draft_revision_uq").on(table.draftId, table.revision)],
+);
+
+export const mission = pgTable("mission", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  ownerUserId: text("owner_user_id")
+    .notNull()
+    .references(() => polarUser.id, { onDelete: "cascade" }),
+  proposalId: text("proposal_id")
+    .notNull()
+    .unique()
+    .references(() => missionProposal.id),
+  content: jsonb("content").notNull(),
+  revision: integer("revision").notNull().default(1),
+  createdAt: timestampColumn("created_at").notNull().defaultNow(),
+});
+
+export const missionAction = pgTable(
+  "mission_action",
+  {
+    id: text("id").primaryKey(),
+    missionId: text("mission_id")
+      .notNull()
+      .references(() => mission.id, { onDelete: "cascade" }),
+    checkpointName: text("checkpoint_name").notNull(),
+    title: text("title").notNull(),
+    detail: text("detail").notNull(),
+    priority: text("priority").notNull(),
+    dependencies: jsonb("dependencies").notNull().default([]),
+    position: integer("position").notNull(),
+    status: text("status").notNull().default("upcoming"),
+  },
+  (table) => [index("mission_action_next_idx").on(table.missionId, table.status, table.position)],
+);
+
+export const attentionItem = pgTable("attention_item", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => polarUser.id, { onDelete: "cascade" }),
+  missionId: text("mission_id")
+    .notNull()
+    .references(() => mission.id, { onDelete: "cascade" }),
+  actionId: text("action_id")
+    .notNull()
+    .references(() => missionAction.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  reason: text("reason").notNull(),
+  createdAt: timestampColumn("created_at").notNull().defaultNow(),
+});
+
+export const domainEvent = pgTable("domain_event", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id")
+    .notNull()
+    .references(() => workspace.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => polarUser.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(),
+  payload: jsonb("payload").notNull(),
+  createdAt: timestampColumn("created_at").notNull().defaultNow(),
+});
+
+export const outbox = pgTable("outbox", {
+  id: text("id").primaryKey(),
+  eventName: text("event_name").notNull(),
+  payload: jsonb("payload").notNull(),
+  deliveredAt: timestampColumn("delivered_at"),
+  attempts: integer("attempts").notNull().default(0),
+  createdAt: timestampColumn("created_at").notNull().defaultNow(),
+});
