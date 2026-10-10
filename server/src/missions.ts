@@ -34,6 +34,7 @@ import {
   polarUser,
   reasoningRequest,
   registeredDevice,
+  workspace,
   workspaceMembership,
   workspaceContext,
   workspaceContextSource,
@@ -225,7 +226,7 @@ export function installMissionRoutes(
         await tx.insert(outbox).values({
           id: requestId,
           eventName: "polar/reasoning.requested",
-          payload: { requestId },
+          payload: { requestId, workspaceId: access.workspaceId },
           createdAt: now,
         });
         await tx.update(missionDraft).set({ updatedAt: now }).where(eq(missionDraft.id, detail.id));
@@ -614,7 +615,7 @@ export function installMissionRoutes(
         await tx.insert(outbox).values({
           id: completionEventId,
           eventName: "polar/reasoning.completed",
-          payload: { requestId: job.id },
+          payload: { requestId: job.id, workspaceId: access.workspaceId },
           createdAt: now,
         });
         return true;
@@ -767,7 +768,7 @@ export function installMissionRoutes(
         await tx.insert(outbox).values({
           id: eventId,
           eventName: "polar/reasoning.requested",
-          payload: { requestId: job.id },
+          payload: { requestId: job.id, workspaceId: job.workspaceId },
           createdAt: now,
         });
       });
@@ -1025,7 +1026,7 @@ export function installMissionRoutes(
         await tx.insert(outbox).values({
           id: randomUUID(),
           eventName: replacing ? "polar/mission.plan_regenerated" : "polar/mission.activated",
-          payload: { missionId },
+          payload: { missionId, workspaceId: access.workspaceId },
           createdAt: now,
         });
         return { missionId };
@@ -1891,16 +1892,30 @@ async function requireWorkspace(
     return null;
   }
   const membership = await db
-    .select({ userId: workspaceMembership.userId, workspaceId: workspaceMembership.workspaceId })
+    .select({
+      userId: workspaceMembership.userId,
+      workspaceId: workspaceMembership.workspaceId,
+      role: workspaceMembership.role,
+      privacy: workspace.privacy,
+      ownerUserId: workspace.ownerUserId,
+    })
     .from(workspaceMembership)
+    .innerJoin(workspace, eq(workspace.id, workspaceMembership.workspaceId))
     .where(
       and(
         eq(workspaceMembership.userId, user.id),
-        ...(workspaceId ? [eq(workspaceMembership.workspaceId, workspaceId)] : []),
+        ...(typeof workspaceId === "string"
+          ? [eq(workspaceMembership.workspaceId, workspaceId)]
+          : []),
       ),
     )
     .limit(1);
-  if (!membership[0]) {
+  if (
+    !membership[0] ||
+    typeof workspaceId !== "string" ||
+    (membership[0].privacy === "private" &&
+      (membership[0].role !== "owner" || membership[0].ownerUserId !== user.id))
+  ) {
     reply.status(403).send({
       error: "WORKSPACE_ACCESS_REQUIRED",
       message: "You are not a member of this workspace.",

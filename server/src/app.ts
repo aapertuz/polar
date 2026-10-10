@@ -1,15 +1,16 @@
 import { fromNodeHeaders } from "better-auth/node";
 import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import { BootstrapResponseSchema, DeviceRegistrationRequestSchema } from "@polar/contracts";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { PolarAuth } from "./auth.js";
 import type { ServerConfig } from "./config.js";
 import type { PolarDatabase } from "./db/client.js";
-import { polarUser, workspaceMembership } from "./db/schema.js";
-import { bootstrapAccount, registerDevice, WorkspaceMembershipError } from "./domain/bootstrap.js";
+import { polarUser } from "./db/schema.js";
+import { bootstrapAccount, registerDevice } from "./domain/bootstrap.js";
 import { Inngest } from "inngest";
 import { installMissionRoutes } from "./missions.js";
 import { installWorkspaceContextRoutes } from "./workspace-context.js";
+import { installWorkspaceRoutes } from "./workspaces.js";
 
 interface AppOptions {
   auth: PolarAuth;
@@ -116,12 +117,6 @@ export function createApp(options?: AppOptions) {
     try {
       return BootstrapResponseSchema.parse(await bootstrapAccount(db, user));
     } catch (error) {
-      if (error instanceof WorkspaceMembershipError) {
-        return reply.status(403).send({
-          error: "WORKSPACE_ACCESS_REQUIRED",
-          message: "You are no longer a member of your Polar workspace.",
-        });
-      }
       request.log.error({ err: error }, "Polar account bootstrap failed");
       return reply.status(503).send({
         error: "BOOTSTRAP_UNAVAILABLE",
@@ -140,14 +135,13 @@ export function createApp(options?: AppOptions) {
         .send({ error: "INVALID_DEVICE", message: "Device details are invalid." });
     }
     try {
-      const access = await currentWorkspace(db, user.id, request.headers["x-polar-workspace-id"]);
-      if (!access) {
-        return reply.status(403).send({
-          error: "WORKSPACE_ACCESS_REQUIRED",
-          message: "You are not a member of this workspace.",
-        });
-      }
-      return await registerDevice(db, access.userId, parsed.data);
+      const [existing] = await db
+        .select({ id: polarUser.id })
+        .from(polarUser)
+        .where(eq(polarUser.authUserId, user.id))
+        .limit(1);
+      const userId = existing?.id ?? (await bootstrapAccount(db, user)).user.id;
+      return await registerDevice(db, userId, parsed.data);
     } catch (error) {
       request.log.error({ err: error }, "Device registration failed");
       return reply.status(503).send({
@@ -159,6 +153,7 @@ export function createApp(options?: AppOptions) {
 
   installMissionRoutes(app, auth, db, config, inngest);
   installWorkspaceContextRoutes(app, auth, db);
+  installWorkspaceRoutes(app, auth, db);
 
   return app;
 }
@@ -172,33 +167,6 @@ async function authenticatedUser(auth: PolarAuth, request: FastifyRequest, reply
     return null;
   }
   return { id: session.user.id, email: session.user.email, name: session.user.name };
-}
-
-async function currentWorkspace(
-  db: PolarDatabase,
-  authUserId: string,
-  selectedWorkspace: string | string[] | undefined,
-) {
-  const [polar] = await db
-    .select({ id: polarUser.id })
-    .from(polarUser)
-    .where(eq(polarUser.authUserId, authUserId))
-    .limit(1);
-  if (!polar) return null;
-  const workspaceId = Array.isArray(selectedWorkspace) ? selectedWorkspace[0] : selectedWorkspace;
-  const [membership] = await db
-    .select({ userId: workspaceMembership.userId, workspaceId: workspaceMembership.workspaceId })
-    .from(workspaceMembership)
-    .where(
-      workspaceId
-        ? and(
-            eq(workspaceMembership.userId, polar.id),
-            eq(workspaceMembership.workspaceId, workspaceId),
-          )
-        : eq(workspaceMembership.userId, polar.id),
-    )
-    .limit(1);
-  return membership ? { userId: membership.userId, workspaceId: membership.workspaceId } : null;
 }
 
 const devicePage = `<!doctype html>

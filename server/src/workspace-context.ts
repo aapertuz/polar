@@ -18,6 +18,7 @@ import {
   reasoningRequest,
   workspaceContext,
   workspaceContextSource,
+  workspace,
   workspaceMembership,
 } from "./db/schema.js";
 
@@ -493,9 +494,12 @@ async function getWorkspaceAccess(
       userId: workspaceMembership.userId,
       workspaceId: workspaceMembership.workspaceId,
       role: workspaceMembership.role,
-      workspaceName: sql<string>`(select name from workspace where id = ${workspaceMembership.workspaceId})`,
+      workspaceName: workspace.name,
+      privacy: workspace.privacy,
+      ownerUserId: workspace.ownerUserId,
     })
     .from(workspaceMembership)
+    .innerJoin(workspace, eq(workspace.id, workspaceMembership.workspaceId))
     .where(
       and(
         eq(workspaceMembership.userId, user.id),
@@ -503,7 +507,12 @@ async function getWorkspaceAccess(
       ),
     )
     .limit(1);
-  if (!membership) return forbidden(reply);
+  if (
+    !membership ||
+    (membership.privacy === "private" &&
+      (membership.role !== "owner" || membership.ownerUserId !== user.id))
+  )
+    return forbidden(reply);
   return membership;
 }
 

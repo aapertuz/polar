@@ -7,6 +7,39 @@ export const ApiFailureSchema = z
   })
   .strict();
 
+export const WorkspacePrivacySchema = z.enum(["private", "shared"]);
+export const WorkspaceSummarySchema = z
+  .object({
+    id: z.uuid(),
+    name: z.string().trim().min(1).max(120),
+    privacy: WorkspacePrivacySchema,
+    role: z.enum(["owner", "member"]),
+    createdAt: z.iso.datetime({ offset: true }),
+  })
+  .strict();
+export const WorkspaceCreateSchema = z
+  .object({ name: z.string().trim().min(1).max(120), privacy: WorkspacePrivacySchema })
+  .strict();
+export const WorkspaceUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    privacy: WorkspacePrivacySchema.optional(),
+  })
+  .strict()
+  .refine((update) => Object.keys(update).length > 0);
+export const WorkspaceDeleteSchema = z
+  .object({ confirmationName: z.string().trim().min(1).max(120) })
+  .strict();
+export const WorkspaceDefaultSchema = z
+  .object({ defaultWorkspaceId: z.uuid().nullable() })
+  .strict();
+export const WorkspaceListResponseSchema = z
+  .object({
+    workspaces: z.array(WorkspaceSummarySchema).max(500),
+    defaultWorkspaceId: z.uuid().nullable(),
+  })
+  .strict();
+
 export const BootstrapResponseSchema = z
   .object({
     user: z
@@ -16,13 +49,8 @@ export const BootstrapResponseSchema = z
         name: z.string().min(1).max(120),
       })
       .strict(),
-    workspace: z
-      .object({
-        id: z.string().min(1).max(200),
-        name: z.string().min(1).max(120),
-        role: z.literal("owner"),
-      })
-      .strict(),
+    workspaces: z.array(WorkspaceSummarySchema).max(500),
+    defaultWorkspaceId: z.uuid().nullable(),
   })
   .strict();
 
@@ -184,6 +212,12 @@ export const WorkspaceContextSourceMutationSchema = z
 export const contractJsonSchemas = Object.freeze({
   apiFailure: z.toJSONSchema(ApiFailureSchema),
   bootstrapResponse: z.toJSONSchema(BootstrapResponseSchema),
+  workspaceSummary: z.toJSONSchema(WorkspaceSummarySchema),
+  workspaceCreate: z.toJSONSchema(WorkspaceCreateSchema),
+  workspaceUpdate: z.toJSONSchema(WorkspaceUpdateSchema),
+  workspaceDelete: z.toJSONSchema(WorkspaceDeleteSchema),
+  workspaceDefault: z.toJSONSchema(WorkspaceDefaultSchema),
+  workspaceListResponse: z.toJSONSchema(WorkspaceListResponseSchema),
   deviceRegistrationRequest: z.toJSONSchema(DeviceRegistrationRequestSchema),
   deviceRegistrationResponse: z.toJSONSchema(DeviceRegistrationResponseSchema),
   missionPlan: z.toJSONSchema(MissionPlanSchema),

@@ -59,12 +59,23 @@ function reasoningTestApp() {
   let reads = 0;
   const rows = [
     [{ id: "user-1" }],
-    [{ userId: "user-1", workspaceId: "workspace-1" }],
+    [
+      {
+        userId: "user-1",
+        workspaceId: "workspace-1",
+        role: "owner",
+        privacy: "private",
+        ownerUserId: "user-1",
+      },
+    ],
     [{ id: "registered-device-1" }],
     [],
   ];
   const query = {
     from() {
+      return this;
+    },
+    innerJoin() {
       return this;
     },
     where() {
@@ -120,7 +131,10 @@ test("detailed reasoning results above 32 KiB reach the protected result handler
     const response = await app.inject({
       method: "POST",
       url: "/api/app/reasoning/missing-job/result",
-      headers: { authorization: "Bearer reasoning-test-token" },
+      headers: {
+        authorization: "Bearer reasoning-test-token",
+        "x-polar-workspace-id": "workspace-1",
+      },
       payload,
     });
     assert.equal(response.statusCode, 404, response.body);
@@ -159,7 +173,10 @@ test("reasoning output violations are distinguished from invalid submission meta
       const response = await app.inject({
         method: "POST",
         url: "/api/app/reasoning/missing-job/result",
-        headers: { authorization: "Bearer reasoning-test-token" },
+        headers: {
+          authorization: "Bearer reasoning-test-token",
+          "x-polar-workspace-id": "workspace-1",
+        },
         payload,
       });
       assert.equal(response.statusCode, 400, response.body);
@@ -259,9 +276,9 @@ test("protected bootstrap rejects missing or revoked bearer sessions", async () 
   }
 });
 
-test("device registration requires current workspace membership", async () => {
+test("device registration is account scoped and works without a selected workspace", async () => {
   const { auth } = createAuth("opaque-test-token");
-  let selectCount = 0;
+  let registered = false;
   const query = {
     from() {
       return this;
@@ -269,12 +286,27 @@ test("device registration requires current workspace membership", async () => {
     where() {
       return this;
     },
-    limit: async () => {
-      selectCount += 1;
-      return selectCount === 1 ? [{ id: "polar-user-1" }] : [];
+    limit: async () => [{ id: "polar-user-1" }],
+  };
+  const registration = {
+    values() {
+      return this;
+    },
+    onConflictDoUpdate() {
+      return this;
+    },
+    returning: async () => {
+      registered = true;
+      return [
+        {
+          id: "11111111-1111-4111-8111-111111111111",
+          label: "This Polar desktop",
+          createdAt: new Date(),
+        },
+      ];
     },
   };
-  const db = { select: () => query } as unknown as PolarDatabase;
+  const db = { select: () => query, insert: () => registration } as unknown as PolarDatabase;
   const app = createApp({ auth, db, config });
   try {
     const response = await app.inject({
@@ -283,9 +315,8 @@ test("device registration requires current workspace membership", async () => {
       headers: { authorization: "Bearer opaque-test-token" },
       payload: { deviceId: "a45481a4-f251-4cc9-b877-71ddfa88e9e3", label: "This Polar desktop" },
     });
-    assert.equal(response.statusCode, 403);
-    assert.equal(response.json().error, "WORKSPACE_ACCESS_REQUIRED");
-    assert.equal(selectCount, 2);
+    assert.equal(response.statusCode, 200, response.body);
+    assert.equal(registered, true);
   } finally {
     await app.close();
   }
@@ -306,7 +337,8 @@ test("shared Zod contracts validate payloads and publish JSON Schema", () => {
   assert.equal(
     BootstrapResponseSchema.safeParse({
       user: { id: "user-1", email: "bad-email", name: "Person" },
-      workspace: { id: "workspace-1", name: "Personal workspace", role: "owner" },
+      workspaces: [],
+      defaultWorkspaceId: null,
     }).success,
     false,
   );

@@ -1,6 +1,13 @@
-import { and, eq } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import type { PolarDatabase } from "../db/client.js";
-import { polarUser, registeredDevice, workspace, workspaceMembership } from "../db/schema.js";
+import {
+  polarUser,
+  registeredDevice,
+  workspace,
+  workspaceMembership,
+  workspacePreference,
+} from "../db/schema.js";
+import { WorkspaceSummarySchema } from "@polar/contracts";
 import type {
   BootstrapResponse,
   DeviceRegistrationRequest,
@@ -11,12 +18,6 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   name: string;
-}
-
-export class WorkspaceMembershipError extends Error {
-  constructor() {
-    super("The authenticated Polar user no longer belongs to their default workspace.");
-  }
 }
 
 export async function bootstrapAccount(
@@ -42,47 +43,48 @@ export async function bootstrapAccount(
       .limit(1);
     if (!polar) throw new Error("Polar user bootstrap did not produce a user.");
 
-    const [insertedWorkspace] = await tx
-      .insert(workspace)
-      .values({ id: crypto.randomUUID(), name: "Personal workspace", ownerUserId: polar.id })
-      .onConflictDoNothing({ target: workspace.ownerUserId })
-      .returning({ id: workspace.id });
-    const [defaultWorkspace] = await tx
-      .select()
-      .from(workspace)
-      .where(eq(workspace.ownerUserId, polar.id))
-      .limit(1);
-    if (!defaultWorkspace)
-      throw new Error("Polar workspace bootstrap did not produce a workspace.");
+    if (insertedPolar) {
+      const initialWorkspaceId = crypto.randomUUID();
+      await tx.insert(workspace).values({
+        id: initialWorkspaceId,
+        name: "My workspace",
+        privacy: "private",
+        ownerUserId: polar.id,
+      });
+      await tx.insert(workspaceMembership).values({
+        workspaceId: initialWorkspaceId,
+        userId: polar.id,
+        role: "owner",
+      });
+    }
 
-    if (insertedPolar || insertedWorkspace) {
-      await tx
-        .insert(workspaceMembership)
-        .values({ workspaceId: defaultWorkspace.id, userId: polar.id, role: "owner" })
-        .onConflictDoNothing({
-          target: [workspaceMembership.workspaceId, workspaceMembership.userId],
-        });
-    }
-    const [membership] = await tx
-      .select()
+    const workspaces = await tx
+      .select({
+        id: workspace.id,
+        name: workspace.name,
+        privacy: workspace.privacy,
+        role: workspaceMembership.role,
+        createdAt: workspace.createdAt,
+      })
       .from(workspaceMembership)
-      .where(
-        and(
-          eq(workspaceMembership.workspaceId, defaultWorkspace.id),
-          eq(workspaceMembership.userId, polar.id),
-        ),
-      )
+      .innerJoin(workspace, eq(workspace.id, workspaceMembership.workspaceId))
+      .where(eq(workspaceMembership.userId, polar.id))
+      .orderBy(asc(workspace.createdAt), asc(workspace.id));
+    const [preference] = await tx
+      .select({ defaultWorkspaceId: workspacePreference.defaultWorkspaceId })
+      .from(workspacePreference)
+      .where(eq(workspacePreference.userId, polar.id))
       .limit(1);
-    if (!membership) {
-      throw new WorkspaceMembershipError();
-    }
-    if (membership.role !== "owner") {
-      throw new Error("Polar default workspace owner role is inconsistent.");
-    }
+    const defaultWorkspaceId = workspaces.some((item) => item.id === preference?.defaultWorkspaceId)
+      ? preference!.defaultWorkspaceId
+      : null;
 
     return {
       user: { id: polar.id, email: polar.email, name: polar.displayName },
-      workspace: { id: defaultWorkspace.id, name: defaultWorkspace.name, role: "owner" },
+      workspaces: workspaces.map((item) =>
+        WorkspaceSummarySchema.parse({ ...item, createdAt: item.createdAt.toISOString() }),
+      ),
+      defaultWorkspaceId,
     };
   });
 }

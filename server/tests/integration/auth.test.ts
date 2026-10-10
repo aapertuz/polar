@@ -166,23 +166,26 @@ test("development authorization rejects cross-workspace access, renews sessions,
     });
     assert.equal(bootstrap.statusCode, 200);
     const identity = bootstrap.json();
-    await t.test("concurrent bootstrap returns one committed user and workspace", async () => {
-      const responses = await Promise.all(
-        Array.from({ length: 4 }, () =>
-          app.inject({
-            method: "GET",
-            url: "/api/app/bootstrap",
-            headers: second.headers,
-          }),
-        ),
-      );
-      for (const response of responses) {
-        assert.equal(response.statusCode, 200);
-        assert.deepEqual(response.json(), responses[0].json());
-      }
-    });
     await t.test(
-      "device registrations are user-owned and require current selected membership",
+      "concurrent bootstrap returns one committed account and workspace list",
+      async () => {
+        const responses = await Promise.all(
+          Array.from({ length: 4 }, () =>
+            app.inject({
+              method: "GET",
+              url: "/api/app/bootstrap",
+              headers: second.headers,
+            }),
+          ),
+        );
+        for (const response of responses) {
+          assert.equal(response.statusCode, 200);
+          assert.deepEqual(response.json(), responses[0].json());
+        }
+      },
+    );
+    await t.test(
+      "device registrations are owned by the signed-in account without a workspace selection",
       async () => {
         const deviceId = randomUUID();
         const request = {
@@ -194,11 +197,11 @@ test("development authorization rejects cross-workspace access, renews sessions,
         assert.equal(owned.statusCode, 200);
         const repeated = await app.inject({ ...request, headers: first.headers });
         assert.deepEqual(repeated.json(), owned.json());
-        const forbidden = await app.inject({
+        const independent = await app.inject({
           ...request,
-          headers: { ...second.headers, "x-polar-workspace-id": identity.workspace.id },
+          headers: { ...second.headers, "x-polar-workspace-id": identity.workspaces[0].id },
         });
-        assert.equal(forbidden.statusCode, 403);
+        assert.equal(independent.statusCode, 200);
         const other = await app.inject({ ...request, headers: second.headers });
         assert.equal(other.statusCode, 200);
         assert.notEqual(other.json().id, owned.json().id);
@@ -248,7 +251,7 @@ test("development authorization rejects cross-workspace access, renews sessions,
           .where(
             and(
               eq(workspaceMembership.userId, identity.user.id),
-              eq(workspaceMembership.workspaceId, identity.workspace.id),
+              eq(workspaceMembership.workspaceId, identity.workspaces[0].id),
             ),
           );
         for (let attempt = 0; attempt < 2; attempt++) {
@@ -257,7 +260,8 @@ test("development authorization rejects cross-workspace access, renews sessions,
             url: "/api/app/bootstrap",
             headers: first.headers,
           });
-          assert.equal(response.statusCode, 403);
+          assert.equal(response.statusCode, 200);
+          assert.deepEqual(response.json().workspaces, []);
         }
         const registration = await app.inject({
           method: "POST",
@@ -265,7 +269,7 @@ test("development authorization rejects cross-workspace access, renews sessions,
           headers: first.headers,
           payload: { deviceId: randomUUID(), label: "Revoked desktop" },
         });
-        assert.equal(registration.statusCode, 403);
+        assert.equal(registration.statusCode, 200);
       },
     );
     await t.test(

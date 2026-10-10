@@ -106,15 +106,19 @@ export const polarUser = pgTable("polar_user", {
   createdAt: timestampColumn("created_at").notNull().defaultNow(),
 });
 
-export const workspace = pgTable("workspace", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  ownerUserId: text("owner_user_id")
-    .notNull()
-    .unique()
-    .references(() => polarUser.id, { onDelete: "cascade" }),
-  createdAt: timestampColumn("created_at").notNull().defaultNow(),
-});
+export const workspace = pgTable(
+  "workspace",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    privacy: text("privacy").notNull().default("private"),
+    ownerUserId: text("owner_user_id")
+      .notNull()
+      .references(() => polarUser.id, { onDelete: "cascade" }),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+  },
+  (table) => [check("workspace_privacy_check", sql`${table.privacy} in ('private', 'shared')`)],
+);
 
 export const workspaceMembership = pgTable(
   "workspace_membership",
@@ -134,6 +138,16 @@ export const workspaceMembership = pgTable(
     index("workspace_membership_user_id_idx").on(table.userId),
   ],
 );
+
+export const workspacePreference = pgTable("workspace_preference", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => polarUser.id, { onDelete: "cascade" }),
+  defaultWorkspaceId: text("default_workspace_id").references(() => workspace.id, {
+    onDelete: "set null",
+  }),
+  updatedAt: timestampColumn("updated_at").notNull().defaultNow(),
+});
 
 export const workspaceContext = pgTable("workspace_context", {
   workspaceId: text("workspace_id")

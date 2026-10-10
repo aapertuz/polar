@@ -4,10 +4,35 @@ export declare const ApiFailureSchema: z.ZodObject<{
   error: z.ZodString;
   message: z.ZodString;
 }>;
-export declare const BootstrapResponseSchema: z.ZodObject<{
-  user: z.ZodObject<{ id: z.ZodString; email: z.ZodEmail; name: z.ZodString }>;
-  workspace: z.ZodObject<{ id: z.ZodString; name: z.ZodString; role: z.ZodLiteral<"owner"> }>;
-}>;
+export type WorkspacePrivacy = "private" | "shared";
+export type WorkspaceSummary = {
+  id: string;
+  name: string;
+  privacy: WorkspacePrivacy;
+  role: "owner" | "member";
+  createdAt: string;
+};
+export type WorkspaceCreate = { name: string; privacy: WorkspacePrivacy };
+export type WorkspaceUpdate = { name?: string; privacy?: WorkspacePrivacy };
+export type WorkspaceDelete = { confirmationName: string };
+export type WorkspaceDefault = { defaultWorkspaceId: string | null };
+export type WorkspaceListResponse = {
+  workspaces: WorkspaceSummary[];
+  defaultWorkspaceId: string | null;
+};
+export type BootstrapResponse = {
+  user: { id: string; email: string; name: string };
+  workspaces: WorkspaceSummary[];
+  defaultWorkspaceId: string | null;
+};
+export declare const WorkspacePrivacySchema: z.ZodType<WorkspacePrivacy>;
+export declare const WorkspaceSummarySchema: z.ZodType<WorkspaceSummary>;
+export declare const WorkspaceCreateSchema: z.ZodType<WorkspaceCreate>;
+export declare const WorkspaceUpdateSchema: z.ZodType<WorkspaceUpdate>;
+export declare const WorkspaceDeleteSchema: z.ZodType<WorkspaceDelete>;
+export declare const WorkspaceDefaultSchema: z.ZodType<WorkspaceDefault>;
+export declare const WorkspaceListResponseSchema: z.ZodType<WorkspaceListResponse>;
+export declare const BootstrapResponseSchema: z.ZodType<BootstrapResponse>;
 export declare const DeviceRegistrationRequestSchema: z.ZodObject<{
   deviceId: z.ZodUUID;
   label: z.ZodString;
@@ -105,6 +130,5 @@ export declare const WorkspaceContextSourceMutationSchema: z.ZodType<WorkspaceCo
 export declare const contractJsonSchemas: Readonly<Record<string, Record<string, unknown>>>;
 
 export type ApiFailure = z.infer<typeof ApiFailureSchema>;
-export type BootstrapResponse = z.infer<typeof BootstrapResponseSchema>;
 export type DeviceRegistrationRequest = z.infer<typeof DeviceRegistrationRequestSchema>;
 export type DeviceRegistrationResponse = z.infer<typeof DeviceRegistrationResponseSchema>;
