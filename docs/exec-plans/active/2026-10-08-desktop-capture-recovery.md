@@ -364,3 +364,80 @@ explicit-request regressions), 26 native tests, 42 Rust tests and 21 server test
 external -3811 remains unresolved. Next action for the other session is to read
 the current desktop procedure and honor the existing "try again" instruction
 with one fresh observation of the ready development app, even with PID 38742.
+
+### Action detail UI review — 2026-10-09
+
+- Initial `pnpm native:status` reported ready, native PID 86031, Vite PID
+  85940, watcher 85656, and the exact managed `Polar Dev.app` path. Binding,
+  guarded observation, and an action click/capture succeeded, but showed the
+  old detail popover. The Vite server and watcher subsequently disappeared;
+  fresh status reported native-only. The original native process was preserved.
+- Restored only the missing frontend with `pnpm --filter @polar/native dev`.
+  The sandbox rejected socket binding with EPERM; approved execution started
+  Vite PID 66588 on port 1420. Fresh status reported ready with the unchanged
+  native PID and exact development bundle. No native restart or privacy change.
+- The next guarded `getAXState` rejected the stale binding with
+  `The user changed '/Users/antoniopertuz/Documents/work/personal/polar/.polar-dev/Polar Dev.app'. Re-query the latest state with get_app_state before sending more actions.`
+  One recovery, following fresh status, failed with the same cause. Evidence:
+  captureState blocked, recoveryUsed true, failedOperation recoverCapture,
+  bindingRefreshes zero. Stopped native interaction; this is a tool binding
+  rejection, not evidence of ScreenCaptureKit -3811.
+- A temporary browser harness reviewed the actual new action components at a
+  normal viewport, 800×600 CSS pixels, and 390×700 CSS pixels. Confirmed dark
+  window appearance, responsive metadata, no horizontal overflow, scroll access
+  to the completion footer, Escape/close dismissal, and trigger focus return.
+  The harness was removed. These checks establish frontend UI behavior only;
+  the new action window has not been visually verified in Tauri.
+- Final `pnpm verify` passed after the CSS refinements with approved local socket
+  access: formatting, lint, documentation/frontend/TypeScript checks, both
+  builds, 9 frontend-checker tests, 23 launcher/review tests, 2 environment tests,
+  32 native tests, 60 Rust tests, and 28 server tests. The initial sandbox run
+  failed two Rust socket tests with PermissionDenied; the approved runs passed.
+  `git diff --check` passed. Packaging was unchanged, so no packaged build was
+  required. The restored Vite server remains running for the original app.
+
+### Action window interaction review — 2026-10-09
+
+The next review started after a concrete native lifecycle change: PID 74430,
+launcher 74157, watcher 74296, and Vite 66588. The exact managed development
+bundle was selected through a new guarded helper. Initial observations and
+captures succeeded. Native appearance showed the new action window, and a fresh
+capture after a flex sizing correction showed its restored scrollable body.
+
+A chrome drag failed with `Computer Use server error -10005: noWindowsAvailable`.
+Fresh status remained ready on the same PID. The single automatic recovery
+succeeded, returning fresh AX state and a full screenshot. The failed gesture
+was not replayed and was not treated as verified. A later independent click was
+rejected with `The user changed '/Users/antoniopertuz/Documents/work/personal/polar/.polar-dev/Polar Dev.app'. Re-query the latest state with get_app_state before sending more actions.`
+Final evidence: captureState blocked, recoveryUsed true, failedOperation click,
+bindingRefreshes zero, userRetryRequests empty. Native automation stopped.
+
+Browser checks independently verified action dragging, corner resizing, keyboard
+movement cancellation, precise keyboard resizing, scrolling, dismissal/focus
+return, and compact/narrow recovery. The owner subsequently reported completing
+manual verification and requested closing the
+[action window plan](../completed/2026-10-09-action-window-interactions.md).
+That feature is complete; the external capture issue remains under investigation.
+
+Next action: investigate the guarded review's changed-binding rejection after
+a successful recovery under the documented bounded procedure. Do not replay
+uncertain gestures or reset this review's
+automatic budget. Existing -3811 and cross-Space limitations remain open.
+
+### Contextual commit handoff — 2026-10-10
+
+The owner requested committing the pending work by context. Action details and
+their window controls are grouped on `feat/action-details`; workspace backend,
+desktop, and completed-plan records are grouped on `feat/workspace-settings`;
+this capture-review record is on `docs/desktop-review`. The branches are stacked
+in that order above `main` so their prerequisites remain available.
+
+The final application tree passed `pnpm verify` with approved local socket
+access; the sandboxed attempt blocked two existing Rust socket tests. Commit
+hooks also ran `pnpm check`. This session did not repeat live database tests or
+desktop gestures; their earlier evidence and owner verification remain recorded
+in the completed feature plans. No new capture evidence was established.
+
+Next action remains investigating the changed-binding rejection after recovery
+under the documented bounded procedure. Capture recovery remains Active, with
+the external -3811 trigger and cross-Space coverage unresolved.
