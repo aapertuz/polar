@@ -161,6 +161,31 @@ The default desktop composition is:
 
 The central dark window is important. It creates the sensation that the user has opened a mission rather than navigated to another project page.
 
+### Desktop window interaction
+
+Polar is an operating environment. Desktop work surfaces, including mission,
+timeline, and action detail windows, must support moving and resizing.
+
+* Drag a window by its title bar or empty chrome. Buttons, inputs, links, and
+  reading content must retain their normal interaction.
+* Resize from the edges and corners. Show a quiet grip at the lower right and
+  use directional resize cursors. Keep minimum dimensions readable and cap
+  window dimensions to the available workspace.
+* Keep window chrome visible while its content scrolls. A smaller window must
+  preserve access to every section through scrolling and responsive reflow.
+* Allow partial offscreen placement while retaining a usable strip of the title
+  bar. Recover the title bar and fit the window when the workspace becomes smaller.
+* Provide keyboard controls for movement and resizing, with visible focus and
+  precise adjustment. Pointer movement and resizing follow input directly,
+  without springs, momentum, or decorative transitions.
+* Work windows remain nonmodal so people can use the surrounding desktop.
+  Clicking outside does not dismiss them. Close explicitly, or press Escape
+  while the window has focus, and return focus to the opening control.
+
+Reserve modal dialogs for decisions that must be resolved before continuing.
+Transient menus and popovers follow their own dismissal behavior. On narrow
+layouts, fit the window to the viewport and keep its content reachable.
+
 ### AI behavior as design
 
 AI should appear through useful changes in the interface, not through constant AI branding.

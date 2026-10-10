@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef } from "react";
-export function useDialog(trigger: HTMLElement | undefined, onClose: () => void) {
+export function useDialog(trigger: HTMLElement | undefined, onClose: () => void, modal = true) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const closeRef = useRef(onClose);
@@ -14,12 +14,13 @@ export function useDialog(trigger: HTMLElement | undefined, onClose: () => void)
   useEffect(() => {
     const dialog = ref.current;
     const previous = trigger ?? document.activeElement;
-    dialog?.showModal();
+    if (modal) dialog?.showModal();
+    else dialog?.show();
     dialog?.querySelector<HTMLElement>("input[autofocus],input")?.focus();
     return () => {
       dialog?.close();
       if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
     };
-  }, [trigger]);
+  }, [trigger, modal]);
   return { ref, titleId, handleCancel, handleBackdropClick };
 }
