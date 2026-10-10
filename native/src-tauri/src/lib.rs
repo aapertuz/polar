@@ -60,6 +60,7 @@ pub fn run() {
             polar_mission_source_remove,
             polar_mission_activate,
             polar_missions,
+            polar_mission_action_update,
             polar_mission_regenerate,
             polar_mission_reasoning_cancel,
             polar_mission_reasoning_retry,

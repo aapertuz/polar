@@ -1,4 +1,5 @@
 import type { Mission } from "@/features/missions/types/mission.types";
+import type { MissionActionUpdate } from "@polar/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useDesktopWindows } from "@/components/desktop/hooks/useDesktopWindows";
@@ -17,17 +18,31 @@ export function useHomeScreen() {
   const desktop = useMediaQuery(DESKTOP_QUERY);
   const timeline = useHomeTimeline(desktop);
   const [missions, setMissions] = useState<Mission[]>([]);
+  const [missionLoadFailed, setMissionLoadFailed] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   const selection = useMissionSelection(timeline.resetExpanded, missions);
   const overlay = useHomeOverlay();
   const quickAi = useQuickAi({ closeOverlays: overlay.close, initialIntent: "new-mission" });
   const refreshMissions = useCallback(async () => {
     if (!isTauri()) return;
-    const rows = await invoke<Parameters<typeof presentMission>[0][]>("polar_missions");
-    setMissions(rows.map(presentMission));
+    try {
+      const rows = await invoke<Parameters<typeof presentMission>[0][]>("polar_missions");
+      setMissions(rows.map(presentMission));
+      setMissionLoadFailed(false);
+    } catch {
+      setMissions([]);
+      setMissionLoadFailed(true);
+    }
   }, []);
+  const updateAction = useCallback(
+    async (missionId: string, actionId: string, updates: MissionActionUpdate) => {
+      await invoke("polar_mission_action_update", { missionId, actionId, updates });
+      await refreshMissions();
+    },
+    [refreshMissions],
+  );
   useEffect(() => {
-    void refreshMissions().catch(() => {});
+    void refreshMissions();
   }, [refreshMissions]);
   useEffect(() => {
     if (pendingSelection && missions.some((mission) => mission.id === pendingSelection)) {
@@ -85,6 +100,7 @@ export function useHomeScreen() {
   const focusHomeMission = reviewMission ?? selection.mission;
   return {
     missions,
+    missionLoadFailed,
     ...selection,
     mission: focusHomeMission,
     reviewingProposal: Boolean(reviewMission),
@@ -92,6 +108,7 @@ export function useHomeScreen() {
     planGenerating,
     activateReviewedProposal,
     refreshMissions,
+    updateAction,
     ...timeline,
     ...overlay,
     quickAi,

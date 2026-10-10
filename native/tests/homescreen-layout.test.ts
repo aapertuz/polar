@@ -52,7 +52,14 @@ test("empty default keeps desktop composition and opens Quick AI", () => {
   assert.match(home, /className="desktop-art"/);
   assert.match(model, /initialIntent: "new-mission"/);
   assert.doesNotMatch(model, /fixtures/);
-  assert.match(home, /mission \? <HomeMissionWindow model=\{model\} \/> : <EmptyWorkspace \/>/);
+  assert.match(home, /\{mission \? \(\s*<HomeMissionWindow model=\{model\} \/>/);
+  assert.match(
+    home,
+    /<EmptyWorkspace\s+missionLoadFailed=\{missionLoadFailed\}\s+onRetry=\{model\.refreshMissions\}/,
+  );
+  const emptyWorkspace = read("pages/home/components/EmptyWorkspace.tsx");
+  assert.match(emptyWorkspace, /Your saved missions are unchanged/);
+  assert.match(emptyWorkspace, /Try again/);
 });
 
 test("island keeps the Polar mark and balances people left of the clock", () => {

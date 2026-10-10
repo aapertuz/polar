@@ -1,5 +1,5 @@
 use crate::application_auth::{internal_session, ApplicationAuthState};
-use serde::Serialize;
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use tauri::State;
 
@@ -18,6 +18,84 @@ struct Message<'a> {
 struct Activate<'a> {
     proposal_id: &'a str,
     revision_hash: &'a str,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct MissionActionUpdate {
+    #[serde(
+        default,
+        deserialize_with = "deserialize_nullable_field",
+        skip_serializing_if = "Option::is_none"
+    )]
+    due_on: Option<Option<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    priority: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    status: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    assignee_ids: Option<Vec<String>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    context_source_ids: Option<Vec<String>>,
+}
+
+fn deserialize_nullable_field<'de, D, T>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
+
+fn validate_action_update(value: Value) -> Result<Value, String> {
+    let update: MissionActionUpdate = serde_json::from_value(value).map_err(|_| {
+        "Choose valid action members, context, deadline, priority, or completion state.".to_string()
+    })?;
+    if update.due_on.is_none()
+        && update.priority.is_none()
+        && update.status.is_none()
+        && update.assignee_ids.is_none()
+        && update.context_source_ids.is_none()
+    {
+        return Err("Choose at least one action field to update.".into());
+    }
+    if let Some(Some(due_on)) = &update.due_on {
+        if chrono::NaiveDate::parse_from_str(due_on, "%Y-%m-%d").is_err() {
+            return Err("Choose a valid action deadline.".into());
+        }
+    }
+    if update
+        .priority
+        .as_deref()
+        .is_some_and(|value| !matches!(value, "High" | "Medium" | "Low"))
+    {
+        return Err("Choose High, Medium, or Low priority.".into());
+    }
+    if update
+        .status
+        .as_deref()
+        .is_some_and(|value| !matches!(value, "upcoming" | "completed"))
+    {
+        return Err("Choose an available action completion state.".into());
+    }
+    if update
+        .assignee_ids
+        .as_ref()
+        .is_some_and(|ids| !valid_reference_ids(ids, 50))
+        || update
+            .context_source_ids
+            .as_ref()
+            .is_some_and(|ids| !valid_reference_ids(ids, 80))
+    {
+        return Err("Action member or context references are invalid.".into());
+    }
+    serde_json::to_value(update).map_err(|_| "Action details are invalid.".to_string())
+}
+
+fn valid_reference_ids(ids: &[String], limit: usize) -> bool {
+    ids.len() <= limit
+        && ids.iter().all(|id| uuid::Uuid::parse_str(id).is_ok())
+        && ids.iter().collect::<std::collections::HashSet<_>>().len() == ids.len()
 }
 
 async fn request(
@@ -184,6 +262,25 @@ pub async fn polar_missions(state: State<'_, ApplicationAuthState>) -> Result<Va
 }
 
 #[tauri::command]
+pub async fn polar_mission_action_update(
+    state: State<'_, ApplicationAuthState>,
+    mission_id: String,
+    action_id: String,
+    updates: Value,
+) -> Result<Value, String> {
+    validate_id(&mission_id)?;
+    validate_id(&action_id)?;
+    let updates = validate_action_update(updates)?;
+    request(
+        &state,
+        reqwest::Method::PATCH,
+        &format!("api/app/missions/{mission_id}/actions/{action_id}"),
+        Some(updates),
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn polar_mission_regenerate(
     state: State<'_, ApplicationAuthState>,
     mission_id: String,
@@ -233,5 +330,38 @@ fn validate_id(value: &str) -> Result<(), String> {
         Ok(())
     } else {
         Err("This mission request is invalid.".into())
+    }
+}
+
+#[cfg(test)]
+mod action_update_tests {
+    use super::validate_action_update;
+    use serde_json::json;
+
+    #[test]
+    fn validates_action_update_fields_and_preserves_a_cleared_deadline() {
+        let result = validate_action_update(json!({
+            "dueOn": null,
+            "priority": "Low",
+            "assigneeIds": ["11111111-1111-4111-8111-111111111111"],
+            "contextSourceIds": []
+        }))
+        .expect("valid updates should be accepted");
+        assert!(result["dueOn"].is_null());
+        assert_eq!(result["priority"], "Low");
+        assert_eq!(result["contextSourceIds"], json!([]));
+    }
+
+    #[test]
+    fn rejects_invalid_dates_statuses_ids_and_unknown_fields() {
+        for value in [
+            json!({"dueOn": "2026-02-30"}),
+            json!({"status": "blocked"}),
+            json!({"assigneeIds": ["invalid"]}),
+            json!({"title": "unscoped"}),
+            json!({}),
+        ] {
+            assert!(validate_action_update(value).is_err());
+        }
     }
 }

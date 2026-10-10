@@ -5,11 +5,13 @@ import { MissionCard } from "@/features/missions/components/MissionCard";
 
 export function MissionSwitcher({
   missions,
+  missionLoadFailed,
   selected,
   select,
   openQuickAi,
 }: {
   missions: Mission[];
+  missionLoadFailed: boolean;
   selected: string;
   select: (id: string, instant?: boolean) => void;
   openQuickAi: (trigger?: HTMLElement) => void;
@@ -58,7 +60,11 @@ export function MissionSwitcher({
           <Icon name="chevron" size={16} />
         </label>
       )}
-      {missions.length === 0 && <p className="empty-mission-list">No missions yet.</p>}
+      {missions.length === 0 && (
+        <p className="empty-mission-list" role={missionLoadFailed ? "status" : undefined}>
+          {missionLoadFailed ? "Missions couldn't load." : "No missions yet."}
+        </p>
+      )}
       <div className="workspace-caption">
         <span className="orientation-point" /> PERSONAL WORKSPACE
       </div>

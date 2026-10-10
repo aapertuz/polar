@@ -82,6 +82,7 @@ const EMPTY_TITLES = {
   people: "Workspace people",
   proposal: "Plan adjustment",
   calendar: "Calendar",
+  action: "Action details",
   detail: "Details",
   "window-menu": "Window controls",
 };
@@ -93,6 +94,7 @@ const EMPTY_MESSAGES = {
   people: "No mission collaborators yet.",
   proposal: "No plan adjustments to review.",
   calendar: "No deadlines scheduled yet.",
+  action: "No mission selected.",
   detail: "No mission selected.",
   "window-menu": "",
 };

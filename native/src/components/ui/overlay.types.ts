@@ -8,6 +8,7 @@ export type OverlayKind =
   | "people"
   | "proposal"
   | "calendar"
+  | "action"
   | "detail"
   | "window-menu";
 export type OverlayRequest = {
@@ -16,4 +17,15 @@ export type OverlayRequest = {
   detail?: string;
   anchor?: HTMLElement;
   instant?: boolean;
+  action?: {
+    id?: string;
+    timing: string;
+    priority?: string;
+    owner: string;
+    ownerInitials: string;
+    dueOn?: string | null;
+    status?: "upcoming" | "completed";
+    assigneeIds?: string[];
+    contextSourceIds?: string[];
+  };
 };

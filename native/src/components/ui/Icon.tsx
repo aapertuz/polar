@@ -16,6 +16,7 @@ export type IconName =
   | "folder"
   | "move"
   | "reset"
+  | "flag"
   | "chevron";
 const paths: Partial<Record<IconName, string>> = {
   search: "M21 21l-5-5M18 10.5a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0",
@@ -35,6 +36,7 @@ const paths: Partial<Record<IconName, string>> = {
   folder: "M3 6h6l2 3h10v12H3V6ZM3 6V3h7l2 3h7v3",
   move: "M12 2v20M2 12h20M9 5l3-3 3 3M9 19l3 3 3-3M5 9l-3 3 3 3M19 9l3 3-3 3",
   reset: "M3 10a9 9 0 1 1 0 5M3 4v6h6",
+  flag: "M5 21V3c5-3 9 3 14 0v10c-5 3-9-3-14 0",
   chevron: "m6 9 6 6 6-6",
 };
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {

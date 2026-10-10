@@ -1,4 +1,26 @@
 export type MissionTab = "Overview" | "Plan" | "Context";
+export type ActionPriority = "High" | "Medium" | "Low";
+export type ActionStatus = "upcoming" | "completed";
+
+export interface MissionPerson {
+  id?: string;
+  name: string;
+  role: string;
+  initials: string;
+}
+
+export interface MissionAction {
+  id?: string;
+  title: string;
+  detail: string;
+  dueOn?: string | null;
+  priority?: ActionPriority;
+  status?: ActionStatus;
+  dependencies?: string[];
+  assigneeIds?: string[];
+  contextSourceIds?: string[];
+}
+
 export interface Mission {
   id: string;
   name: string;
@@ -29,7 +51,9 @@ export interface Mission {
       date?: string;
     }[];
   }[];
-  people: { name: string; role: string; initials: string }[];
+  currentUserId?: string;
+  people: MissionPerson[];
+  workspacePeople?: MissionPerson[];
   evidence: {
     id?: string;
     title: string;
@@ -41,13 +65,10 @@ export interface Mission {
     cited?: boolean;
     currentState?: "current" | "changed" | "removed";
   }[];
-  upcoming: {
-    title: string;
+  actions?: MissionAction[];
+  upcoming: (MissionAction & {
     timing: string;
-    dueOn?: string | null;
-    priority?: "High" | "Medium";
     owner: string;
-    detail: string;
-  }[];
+  })[];
   activity: { title: string; timing: string; icon: "folder" | "file" | "plus"; detail: string }[];
 }

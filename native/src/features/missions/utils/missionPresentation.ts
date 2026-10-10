@@ -1,5 +1,7 @@
 import type { MissionPlan } from "@polar/contracts";
 import { formatPlanDate } from "@/features/missions/utils/planDates";
+import { presentActions, upcomingActions } from "@/features/missions/utils/actionPresentation";
+import type { ActionPresentationInput } from "@/features/missions/utils/actionPresentation";
 import type { Mission } from "@/features/missions/types/mission.types";
 
 interface SourceReference {
@@ -25,18 +27,16 @@ interface PersistedMission {
   successCriteria: string[];
   risks: string[];
   assumptions: string[];
-  actions: {
-    title: string;
-    detail: string;
-    priority: string;
-    status: string;
-    dependencies?: string[];
-    dueOn?: string | null;
-  }[];
+  actions: ActionPresentationInput[];
+  currentUserId?: string;
+  workspacePeople?: { id: string; name: string; role: string; initials: string }[];
   sources?: SourceReference[];
 }
 
 export function presentMission(value: PersistedMission): Mission {
+  const people = value.workspacePeople ?? [];
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const actions = presentActions(value.actions, value.currentUserId);
   const checkpoints = value.checkpoints.map((checkpoint) => ({
     name: checkpoint.name,
     detail: checkpoint.detail,
@@ -51,21 +51,12 @@ export function presentMission(value: PersistedMission): Mission {
       date: formatPlanDate(dueOn),
     })),
   }));
-  const upcoming = value.actions
-    .filter((action) => action.status === "upcoming")
-    .map((action) => ({
-      title: action.title,
-      timing: "Upcoming",
-      dueOn: action.dueOn ?? null,
-      priority:
-        action.priority === "high"
-          ? ("High" as const)
-          : action.priority === "medium"
-            ? ("Medium" as const)
-            : undefined,
-      owner: "You",
-      detail: action.detail,
-    }));
+  const upcoming = upcomingActions(actions).map((action) => ({
+    ...action,
+    title: action.title,
+    timing: "Upcoming",
+    owner: peopleById.get(action.assigneeIds[0] ?? "")?.initials ?? "—",
+  }));
   return {
     id: value.id,
     name: value.name,
@@ -81,7 +72,9 @@ export function presentMission(value: PersistedMission): Mission {
     checkpoints,
     actionCount: value.actions.length,
     units: { received: 0, target: 0, label: "" },
+    currentUserId: value.currentUserId,
     people: [],
+    workspacePeople: people,
     evidence: (value.sources ?? []).map((source) => ({
       id: source.id,
       title: source.title,
@@ -94,6 +87,7 @@ export function presentMission(value: PersistedMission): Mission {
       currentState: source.currentState,
     })),
     upcoming,
+    actions,
     activity: [
       {
         title: "You created this mission",

@@ -10,13 +10,14 @@ import { NotificationsOverlay } from "@/pages/home/components/overlays/Notificat
 import { PeopleOverlay } from "@/pages/home/components/overlays/PeopleOverlay";
 import { ProposalOverlay } from "@/pages/home/components/overlays/ProposalOverlay";
 import { CalendarOverlay } from "@/pages/home/components/overlays/CalendarOverlay";
+import { ActionDetail } from "@/features/missions/components/ActionDetail";
 import { DetailOverlay } from "@/pages/home/components/overlays/DetailOverlay";
 import { WindowMenuOverlay } from "@/pages/home/components/overlays/WindowMenuOverlay";
 import { WorkspaceContextSurface } from "@/features/workspace-context/components/WorkspaceContextSurface";
 export interface OverlayDefinition {
   Component: ComponentType<OverlayBodyProps>;
   title: string;
-  surface: "dialog" | "popover";
+  surface: "dialog" | "popover" | "action-window";
 }
 export const overlayRegistry: Record<OverlayKind, OverlayDefinition> = {
   search: { Component: SearchOverlay, title: "Find a mission", surface: "dialog" },
@@ -36,6 +37,7 @@ export const overlayRegistry: Record<OverlayKind, OverlayDefinition> = {
   people: { Component: PeopleOverlay, title: "Mission people", surface: "popover" },
   proposal: { Component: ProposalOverlay, title: "Preview plan adjustment", surface: "dialog" },
   calendar: { Component: CalendarOverlay, title: SAMPLE_CALENDAR.title, surface: "popover" },
+  action: { Component: ActionDetail, title: "Action details", surface: "action-window" },
   detail: { Component: DetailOverlay, title: "Details", surface: "popover" },
   "window-menu": { Component: WindowMenuOverlay, title: "Window controls", surface: "popover" },
 };

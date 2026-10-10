@@ -16,6 +16,7 @@ export function HomeScreen() {
   const {
     selected,
     mission,
+    missionLoadFailed,
     select,
     open,
     desktop,
@@ -51,6 +52,7 @@ export function HomeScreen() {
         <div className="desktop-layout">
           <MissionSwitcher
             missions={model.missions}
+            missionLoadFailed={missionLoadFailed}
             selected={selected}
             select={select}
             openQuickAi={openQuickAiNewMission}
@@ -58,7 +60,14 @@ export function HomeScreen() {
           <div
             className={`desktop-workspace ${desktop && !timelineVisible ? "timeline-hidden" : ""}`}
           >
-            {mission ? <HomeMissionWindow model={model} /> : <EmptyWorkspace />}
+            {mission ? (
+              <HomeMissionWindow model={model} />
+            ) : (
+              <EmptyWorkspace
+                missionLoadFailed={missionLoadFailed}
+                onRetry={model.refreshMissions}
+              />
+            )}
             {showTimeline && (
               <>
                 <div
@@ -95,6 +104,7 @@ export function HomeScreen() {
               timelineVisible={showTimeline}
               toggleTimeline={toggleTimeline}
               open={open}
+              updateAction={model.updateAction}
             />
           ) : (
             <EmptyHomeOverlays

@@ -9,7 +9,21 @@ const overlayTypes = readFileSync(resolve(root, "components/ui/overlay.types.ts"
 const registryFile = resolve(root, "pages/home/config/overlayRegistry.ts");
 const registry = readFileSync(registryFile, "utf8");
 test("overlay registry covers every overlay kind with a component file", () => {
-  const kinds = [...overlayTypes.matchAll(/\|\s*"([a-z-]+)"/g)].map((match) => match[1]);
+  const overlayTypeSource = ts.createSourceFile(
+    "overlay.types.ts",
+    overlayTypes,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const overlayKind = overlayTypeSource.statements.find(
+    (statement) => ts.isTypeAliasDeclaration(statement) && statement.name.text === "OverlayKind",
+  );
+  assert.ok(overlayKind && ts.isUnionTypeNode(overlayKind.type));
+  const kinds = overlayKind.type.types.map((member) => {
+    assert.ok(ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal));
+    return member.literal.text;
+  });
   const source = ts.createSourceFile(
     registryFile,
     registry,

@@ -16,6 +16,8 @@
   --red-deep: #c92d26;
   --red-wash: rgba(242, 56, 47, 0.12);
   --focus: #6e9fd4;
+  --warning: #c88a32;
+  --success: #88a95b;
   --sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
   --mono: "Geist Mono", "IBM Plex Mono", ui-monospace, monospace;
   --dots: "Doto", var(--mono);

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { actionTiming } from "../src/features/attention/utils/actionTiming.ts";
+import { actionTiming } from "../src/utils/actionTiming.ts";
 
 const now = new Date(2026, 9, 9, 12).getTime();
 test("timeline uses Today, Tomorrow, Next for days 2–6 and Upcoming from day 7", () => {
