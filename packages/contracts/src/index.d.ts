@@ -17,6 +17,13 @@ export declare const DeviceRegistrationResponseSchema: z.ZodObject<{
   label: z.ZodString;
   createdAt: z.ZodISODateTime;
 }>;
+export type MissionActionUpdate = {
+  dueOn?: string | null;
+  priority?: "High" | "Medium" | "Low";
+  status?: "upcoming" | "completed";
+  assigneeIds?: string[];
+  contextSourceIds?: string[];
+};
 export type MissionPlan = {
   name: string;
   outcome: string;
@@ -91,6 +98,7 @@ export declare const MissionSourceSchema: z.ZodType<MissionSource>;
 export declare const ReasoningClaimSchema: z.ZodType<ReasoningClaim>;
 export declare const ReasoningResultSchema: z.ZodType<ReasoningResult>;
 export declare const MissionActivationSchema: z.ZodType<MissionActivation>;
+export declare const MissionActionUpdateSchema: z.ZodType<MissionActionUpdate>;
 export declare const WorkspaceContextBriefUpdateSchema: z.ZodType<WorkspaceContextBriefUpdate>;
 export declare const WorkspaceContextSourceInputSchema: z.ZodType<WorkspaceContextSourceInput>;
 export declare const WorkspaceContextSourceMutationSchema: z.ZodType<WorkspaceContextSourceMutation>;

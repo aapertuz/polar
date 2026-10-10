@@ -3,6 +3,7 @@ import { and, asc, desc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   MissionActivationSchema,
+  MissionActionUpdateSchema,
   MissionDraftCreateSchema,
   MissionInterpreterOutputSchema,
   MissionMessageSchema,
@@ -23,6 +24,8 @@ import {
   domainEvent,
   mission,
   missionAction,
+  missionActionContext,
+  missionActionMember,
   missionDraft,
   missionMessage,
   missionProposal,
@@ -35,9 +38,12 @@ import {
   workspaceContext,
   workspaceContextSource,
 } from "./db/schema.js";
+import { missionContextSourceIds, withActionDeadline } from "./action-updates.js";
 
 const MAX_CONTEXT_CHARS = 200_000;
 const MAX_CONVERSATION_CHARS = 60_000;
+const UUID_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 // Covers separate three-minute planning and scheduling requests plus submission.
 const REASONING_LEASE_MS = 420_000;
 const REASONING_FAILURE_MESSAGES: Record<string, string> = {
@@ -971,11 +977,19 @@ export function installMissionRoutes(
             dependencies: action.dependsOn,
             position: checkpointIndex * 100 + actionIndex,
             status: "upcoming",
+            dueOn: action.dueOn ?? null,
           })),
         );
         const firstRow = actions.find((action) => action.title === first.title);
         if (firstRow) firstRow.id = firstActionId;
         await tx.insert(missionAction).values(actions);
+        await tx
+          .insert(missionActionMember)
+          .values(actions.map((action) => ({ actionId: action.id, userId: access.userId })));
+        const actionContexts = actions.flatMap((action) =>
+          sourceReferences.map((source) => ({ actionId: action.id, sourceId: source.id })),
+        );
+        if (actionContexts.length) await tx.insert(missionActionContext).values(actionContexts);
         await tx.insert(attentionItem).values({
           id: randomUUID(),
           workspaceId: access.workspaceId,
@@ -1033,6 +1047,184 @@ export function installMissionRoutes(
     },
   );
 
+  app.patch<{ Params: { missionId: string; actionId: string } }>(
+    "/api/app/missions/:missionId/actions/:actionId",
+    async (request, reply) => {
+      const access = await requireWorkspace(auth, db, request, reply);
+      if (!access) return;
+      if (
+        !UUID_ID_PATTERN.test(request.params.missionId) ||
+        !UUID_ID_PATTERN.test(request.params.actionId)
+      ) {
+        return reply.status(400).send({
+          error: "INVALID_ACTION",
+          message: "Action details are invalid.",
+        });
+      }
+      const parsed = MissionActionUpdateSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: "INVALID_ACTION_UPDATE",
+          message: "Choose valid action members, context, deadline, priority, or completion state.",
+        });
+      }
+
+      const result = await db.transaction(async (tx) => {
+        const [savedMission] = await tx
+          .select()
+          .from(mission)
+          .where(
+            and(
+              eq(mission.id, request.params.missionId),
+              eq(mission.workspaceId, access.workspaceId),
+            ),
+          )
+          .limit(1)
+          .for("update");
+        if (!savedMission) return { error: "MISSION_NOT_FOUND" as const };
+
+        const [savedAction] = await tx
+          .select()
+          .from(missionAction)
+          .where(
+            and(
+              eq(missionAction.id, request.params.actionId),
+              eq(missionAction.missionId, savedMission.id),
+            ),
+          )
+          .limit(1)
+          .for("update");
+        if (!savedAction) return { error: "ACTION_NOT_FOUND" as const };
+
+        const update = parsed.data;
+        if (update.assigneeIds !== undefined && update.assigneeIds.length) {
+          const members = await tx
+            .select({ userId: workspaceMembership.userId })
+            .from(workspaceMembership)
+            .where(
+              and(
+                eq(workspaceMembership.workspaceId, access.workspaceId),
+                inArray(workspaceMembership.userId, update.assigneeIds),
+              ),
+            );
+          if (members.length !== update.assigneeIds.length) {
+            return { error: "INVALID_ACTION_MEMBER" as const };
+          }
+        }
+
+        if (update.contextSourceIds !== undefined) {
+          const availableSourceIds = new Set(missionContextSourceIds(savedMission.content));
+          if (update.contextSourceIds.some((sourceId) => !availableSourceIds.has(sourceId))) {
+            return { error: "INVALID_ACTION_CONTEXT" as const };
+          }
+        }
+
+        const actionChanges: Partial<typeof missionAction.$inferInsert> = {};
+        let updatedContent: Record<string, unknown> | null = null;
+        if (update.priority !== undefined) actionChanges.priority = update.priority.toLowerCase();
+        if (update.status !== undefined) actionChanges.status = update.status;
+        if (Object.hasOwn(update, "dueOn")) {
+          actionChanges.dueOn = update.dueOn ?? null;
+          updatedContent = withActionDeadline(
+            savedMission.content,
+            savedAction.checkpointName,
+            savedAction.title,
+            update.dueOn ?? null,
+          );
+          if (!updatedContent) return { error: "ACTION_PLAN_OUT_OF_SYNC" as const };
+        }
+        if (Object.keys(actionChanges).length) {
+          await tx
+            .update(missionAction)
+            .set(actionChanges)
+            .where(eq(missionAction.id, savedAction.id));
+        }
+
+        if (update.assigneeIds !== undefined) {
+          await tx
+            .delete(missionActionMember)
+            .where(eq(missionActionMember.actionId, savedAction.id));
+          if (update.assigneeIds.length) {
+            await tx
+              .insert(missionActionMember)
+              .values(update.assigneeIds.map((userId) => ({ actionId: savedAction.id, userId })));
+          }
+        }
+        if (update.contextSourceIds !== undefined) {
+          await tx
+            .delete(missionActionContext)
+            .where(eq(missionActionContext.actionId, savedAction.id));
+          if (update.contextSourceIds.length) {
+            await tx.insert(missionActionContext).values(
+              update.contextSourceIds.map((sourceId) => ({
+                actionId: savedAction.id,
+                sourceId,
+              })),
+            );
+          }
+        }
+        if (update.status === "completed") {
+          await tx.delete(attentionItem).where(eq(attentionItem.actionId, savedAction.id));
+        }
+
+        const now = new Date();
+        await tx
+          .update(mission)
+          .set({
+            revision: savedMission.revision + 1,
+            ...(updatedContent ? { content: updatedContent } : {}),
+          })
+          .where(eq(mission.id, savedMission.id));
+        await tx.insert(domainEvent).values({
+          id: randomUUID(),
+          workspaceId: access.workspaceId,
+          userId: access.userId,
+          eventType: "mission.action_updated",
+          payload: {
+            missionId: savedMission.id,
+            actionId: savedAction.id,
+            changedFields: Object.keys(update),
+          },
+          createdAt: now,
+        });
+        await tx.insert(outbox).values({
+          id: randomUUID(),
+          eventName: "polar/mission.action_updated",
+          payload: {
+            missionId: savedMission.id,
+            actionId: savedAction.id,
+            workspaceId: access.workspaceId,
+          },
+          createdAt: now,
+        });
+        return {
+          missionId: savedMission.id,
+          actionId: savedAction.id,
+          revision: savedMission.revision + 1,
+        };
+      });
+
+      if ("error" in result && result.error) {
+        const status =
+          result.error === "MISSION_NOT_FOUND" || result.error === "ACTION_NOT_FOUND"
+            ? 404
+            : result.error === "INVALID_ACTION_MEMBER" || result.error === "INVALID_ACTION_CONTEXT"
+              ? 400
+              : 409;
+        const messages = {
+          MISSION_NOT_FOUND: "This mission is no longer available.",
+          ACTION_NOT_FOUND: "This action is no longer available.",
+          INVALID_ACTION_MEMBER: "Assign this action only to current workspace members.",
+          INVALID_ACTION_CONTEXT: "Choose context already included with this mission.",
+          ACTION_PLAN_OUT_OF_SYNC:
+            "The action schedule changed. Refresh the mission and try again.",
+        };
+        return reply.status(status).send({ error: result.error, message: messages[result.error] });
+      }
+      return result;
+    },
+  );
+
   app.get("/api/app/missions", async (request, reply) => {
     const access = await requireWorkspace(auth, db, request, reply);
     if (!access) return;
@@ -1041,6 +1233,19 @@ export function installMissionRoutes(
       .from(mission)
       .where(eq(mission.workspaceId, access.workspaceId))
       .orderBy(desc(mission.createdAt));
+    const workspacePeople = await db
+      .select({
+        id: polarUser.id,
+        name: polarUser.displayName,
+        role: workspaceMembership.role,
+      })
+      .from(workspaceMembership)
+      .innerJoin(polarUser, eq(polarUser.id, workspaceMembership.userId))
+      .where(eq(workspaceMembership.workspaceId, access.workspaceId));
+    const people = workspacePeople.map((person) => ({
+      ...person,
+      initials: personInitials(person.name),
+    }));
     const result = [];
     for (const row of rows) {
       const actions = await db
@@ -1099,11 +1304,34 @@ export function installMissionRoutes(
         revision: currentWorkspaceContext?.revision ?? 1,
         archivedAt: null,
       });
-      const dueDates = new Map(
-        content.checkpoints.flatMap((checkpoint) =>
-          checkpoint.actions.map((action) => [action.title, action.dueOn ?? null] as const),
-        ),
-      );
+      const actionIds = actions.map((action) => action.id);
+      const assignedMembers = actionIds.length
+        ? await db
+            .select({ actionId: missionActionMember.actionId, userId: missionActionMember.userId })
+            .from(missionActionMember)
+            .where(inArray(missionActionMember.actionId, actionIds))
+        : [];
+      const actionSources = actionIds.length
+        ? await db
+            .select({
+              actionId: missionActionContext.actionId,
+              sourceId: missionActionContext.sourceId,
+            })
+            .from(missionActionContext)
+            .where(inArray(missionActionContext.actionId, actionIds))
+        : [];
+      const assigneeIdsByAction = new Map<string, string[]>();
+      for (const assignment of assignedMembers) {
+        const ids = assigneeIdsByAction.get(assignment.actionId) ?? [];
+        ids.push(assignment.userId);
+        assigneeIdsByAction.set(assignment.actionId, ids);
+      }
+      const contextIdsByAction = new Map<string, string[]>();
+      for (const source of actionSources) {
+        const ids = contextIdsByAction.get(source.actionId) ?? [];
+        ids.push(source.sourceId);
+        contextIdsByAction.set(source.actionId, ids);
+      }
       const nextAction =
         actions.find(
           (action) =>
@@ -1125,13 +1353,18 @@ export function installMissionRoutes(
         successCriteria: content.successCriteria,
         risks: content.risks,
         assumptions: content.assumptions,
-        actions: actions.map(({ title, detail, priority, status, dependencies }) => ({
+        currentUserId: access.userId,
+        workspacePeople: people,
+        actions: actions.map(({ id, title, detail, priority, status, dependencies, dueOn }) => ({
+          id,
           title,
           detail,
           priority,
           status,
           dependencies,
-          dueOn: dueDates.get(title) ?? null,
+          dueOn: dueOn ?? null,
+          assigneeIds: assigneeIdsByAction.get(id) ?? [],
+          contextSourceIds: contextIdsByAction.get(id) ?? [],
         })),
         nextAction,
         sources: content.sourceReferences.map((source) => {
@@ -1692,6 +1925,16 @@ async function deviceBelongsTo(db: PolarDatabase, userId: string, deviceId: stri
 function header(request: FastifyRequest, key: string) {
   const value = request.headers[key];
   return Array.isArray(value) ? value[0] : value;
+}
+
+function personInitials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toLocaleUpperCase() ?? "")
+    .join("");
 }
 
 function invalid(reply: FastifyReply, message: string) {

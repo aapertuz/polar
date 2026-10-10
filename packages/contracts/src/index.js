@@ -127,6 +127,22 @@ export const ReasoningResultSchema = z
 export const MissionActivationSchema = z
   .object({ proposalId: z.uuid(), revisionHash: z.string().regex(/^[a-f0-9]{64}$/) })
   .strict();
+export const MissionActionUpdateSchema = z
+  .object({
+    dueOn: z.iso.date().nullable().optional(),
+    priority: z.enum(["High", "Medium", "Low"]).optional(),
+    status: z.enum(["upcoming", "completed"]).optional(),
+    assigneeIds: z.array(z.uuid()).max(50).optional(),
+    contextSourceIds: z.array(z.uuid()).max(80).optional(),
+  })
+  .strict()
+  .refine((update) => Object.keys(update).length > 0)
+  .refine(
+    (update) =>
+      (!update.assigneeIds || new Set(update.assigneeIds).size === update.assigneeIds.length) &&
+      (!update.contextSourceIds ||
+        new Set(update.contextSourceIds).size === update.contextSourceIds.length),
+  );
 
 export const WorkspaceContextBriefUpdateSchema = z
   .object({ brief: z.string().max(8000), expectedRevision: z.number().int().positive() })
@@ -178,6 +194,7 @@ export const contractJsonSchemas = Object.freeze({
   reasoningClaim: z.toJSONSchema(ReasoningClaimSchema),
   reasoningResult: z.toJSONSchema(ReasoningResultSchema),
   missionActivation: z.toJSONSchema(MissionActivationSchema),
+  missionActionUpdate: z.toJSONSchema(MissionActionUpdateSchema),
   workspaceContextBriefUpdate: z.toJSONSchema(WorkspaceContextBriefUpdateSchema),
   workspaceContextSourceInput: z.toJSONSchema(WorkspaceContextSourceInputSchema),
   workspaceContextSourceMutation: z.toJSONSchema(WorkspaceContextSourceMutationSchema),

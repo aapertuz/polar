@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
@@ -318,8 +319,33 @@ export const missionAction = pgTable(
     dependencies: jsonb("dependencies").notNull().default([]),
     position: integer("position").notNull(),
     status: text("status").notNull().default("upcoming"),
+    dueOn: date("due_on", { mode: "string" }),
   },
   (table) => [index("mission_action_next_idx").on(table.missionId, table.status, table.position)],
+);
+
+export const missionActionMember = pgTable(
+  "mission_action_member",
+  {
+    actionId: text("action_id")
+      .notNull()
+      .references(() => missionAction.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => polarUser.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.actionId, table.userId] })],
+);
+
+export const missionActionContext = pgTable(
+  "mission_action_context",
+  {
+    actionId: text("action_id")
+      .notNull()
+      .references(() => missionAction.id, { onDelete: "cascade" }),
+    sourceId: text("source_id").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.actionId, table.sourceId] })],
 );
 
 export const attentionItem = pgTable("attention_item", {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   MissionInterpreterOutputSchema,
+  MissionActionUpdateSchema,
   MissionPlanSchema,
   WorkspaceContextSourceMutationSchema,
 } from "@polar/contracts";
@@ -12,6 +13,7 @@ import {
   validCitations,
   type ContextManifest,
 } from "../src/missions.js";
+import { missionContextSourceIds, withActionDeadline } from "../src/action-updates.js";
 
 const plan = {
   name: "Prepare launch",
@@ -66,6 +68,61 @@ test("mission proposal contract requires structured clarification and complete p
     }).success,
     false,
   );
+});
+
+test("action updates validate editable fields and reject empty or duplicated assignments", () => {
+  const memberId = "11111111-1111-4111-8111-111111111111";
+  const sourceId = "22222222-2222-4222-8222-222222222222";
+  assert.equal(
+    MissionActionUpdateSchema.safeParse({
+      dueOn: null,
+      priority: "Low",
+      status: "completed",
+      assigneeIds: [memberId],
+      contextSourceIds: [sourceId],
+    }).success,
+    true,
+  );
+  assert.equal(MissionActionUpdateSchema.safeParse({}).success, false);
+  assert.equal(MissionActionUpdateSchema.safeParse({ dueOn: "2026-02-30" }).success, false);
+  assert.equal(
+    MissionActionUpdateSchema.safeParse({ assigneeIds: [memberId, memberId] }).success,
+    false,
+  );
+  assert.equal(
+    MissionActionUpdateSchema.safeParse({ contextSourceIds: [sourceId, sourceId] }).success,
+    false,
+  );
+  assert.equal(MissionActionUpdateSchema.safeParse({ status: "blocked" }).success, false);
+  assert.equal(MissionActionUpdateSchema.safeParse({ priority: "Urgent" }).success, false);
+  assert.equal(MissionActionUpdateSchema.safeParse({ title: "Unscoped edit" }).success, false);
+});
+
+test("action deadline updates modify exactly one saved plan action and preserve other fields", () => {
+  const content = {
+    name: "Pilot",
+    sourceReferences: [{ id: "source-1" }],
+    checkpoints: [
+      {
+        name: "Prepare",
+        dueOn: "2026-10-12",
+        actions: [
+          { title: "Confirm venue", dueOn: "2026-10-10", detail: "Call the venue." },
+          { title: "Invite team", dueOn: null, detail: "Send the invite." },
+        ],
+      },
+      { name: "Deliver", actions: [{ title: "Run event", dueOn: "2026-10-12" }] },
+    ],
+  };
+  const next = withActionDeadline(content, "Prepare", "Confirm venue", "2026-10-11");
+  assert.ok(next?.checkpoints instanceof Array);
+  const checkpoints = next.checkpoints as {
+    actions: { title: string; dueOn?: string | null }[];
+  }[];
+  assert.equal(checkpoints[0]?.actions[0]?.dueOn, "2026-10-11");
+  assert.equal(content.checkpoints[0]?.actions[0]?.dueOn, "2026-10-10");
+  assert.deepEqual(missionContextSourceIds(content), ["source-1"]);
+  assert.equal(withActionDeadline(content, "Missing", "Confirm venue", null), null);
 });
 
 test("proposal dependencies require known unique actions and an acyclic graph", () => {
