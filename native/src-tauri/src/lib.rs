@@ -2,12 +2,14 @@ mod application_auth;
 mod mission_api;
 mod mission_context;
 mod providers;
+mod workspace_api;
 mod workspace_context_api;
 use application_auth::*;
 use mission_api::*;
 use mission_context::*;
 use providers::*;
 use tauri::Manager;
+use workspace_api::*;
 use workspace_context_api::*;
 
 #[tauri::command]
@@ -52,6 +54,11 @@ pub fn run() {
             polar_workspace_context_source_add,
             polar_workspace_context_source_replace,
             polar_workspace_context_source_archive,
+            polar_workspace_select,
+            polar_workspace_create,
+            polar_workspace_update,
+            polar_workspace_delete,
+            polar_workspace_set_default,
             polar_mission_drafts,
             polar_mission_draft_get,
             polar_mission_draft_create,

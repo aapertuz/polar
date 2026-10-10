@@ -2,9 +2,14 @@ import { Dialog } from "@/components/ui/Dialog";
 import { Popover } from "@/components/ui/Popover";
 import { SettingsOverlay } from "@/pages/home/components/overlays/SettingsOverlay";
 import { WindowMenuOverlay } from "@/pages/home/components/overlays/WindowMenuOverlay";
-import { WorkspaceContextSurface } from "@/features/workspace-context/components/WorkspaceContextSurface";
+import { WorkspaceSettingsSurface } from "@/pages/home/components/overlays/WorkspaceSettingsSurface";
+import { WorkspaceCreateSurface } from "@/features/workspaces/components/WorkspaceCreateSurface";
 import { useEmptyWorkspace } from "@/pages/home/hooks/useEmptyWorkspace";
 import type { OverlayRequest } from "@/components/ui/overlay.types";
+import type { usePolarAccount } from "@/features/application-auth/hooks/usePolarAccount";
+import type { useWorkspaceSettings } from "@/features/workspaces/hooks/useWorkspaceSettings";
+type AccountModel = ReturnType<typeof usePolarAccount>;
+type WorkspaceSettingsModel = ReturnType<typeof useWorkspaceSettings>;
 interface Props {
   request: OverlayRequest;
   close: () => void;
@@ -12,6 +17,8 @@ interface Props {
   reset: () => void;
   timelineVisible: boolean;
   toggleTimeline: () => void;
+  account: AccountModel;
+  workspaceSettings: WorkspaceSettingsModel;
 }
 export function EmptyHomeOverlays({
   request,
@@ -20,9 +27,11 @@ export function EmptyHomeOverlays({
   reset,
   timelineVisible,
   toggleTimeline,
+  account,
+  workspaceSettings,
 }: Props) {
   const { openSettings } = useEmptyWorkspace(open);
-  const openWorkspaceContext = () => open({ kind: "workspace-context" });
+  const openWorkspaceSettings = () => open({ kind: "workspace-settings" });
   if (request.kind === "settings")
     return (
       <Dialog
@@ -32,19 +41,31 @@ export function EmptyHomeOverlays({
         trigger={request.anchor}
         instant={request.instant}
       >
-        <SettingsOverlay />
+        <SettingsOverlay account={account} />
       </Dialog>
     );
-  if (request.kind === "workspace-context")
+  if (request.kind === "workspace-settings")
     return (
       <Dialog
-        title="Workspace context"
+        title="Workspace settings"
         eyebrow="POLAR / WORKSPACE"
         onClose={close}
         trigger={request.anchor}
         instant={request.instant}
       >
-        <WorkspaceContextSurface close={close} />
+        <WorkspaceSettingsSurface model={workspaceSettings} open={open} close={close} />
+      </Dialog>
+    );
+  if (request.kind === "workspace-create")
+    return (
+      <Dialog
+        title="Create workspace"
+        eyebrow="POLAR / WORKSPACE"
+        onClose={close}
+        trigger={request.anchor}
+        instant={request.instant}
+      >
+        <WorkspaceCreateSurface model={workspaceSettings} close={close} />
       </Dialog>
     );
   return (
@@ -66,7 +87,7 @@ export function EmptyHomeOverlays({
       )}
       {request.kind === "launcher" && (
         <div className="window-menu">
-          <button onClick={openWorkspaceContext}>Workspace context</button>
+          <button onClick={openWorkspaceSettings}>Workspace settings</button>
           <button onClick={openSettings}>Settings</button>
         </div>
       )}
@@ -76,7 +97,8 @@ export function EmptyHomeOverlays({
 const EMPTY_TITLES = {
   search: "Find a mission",
   launcher: "Your workspace",
-  "workspace-context": "Workspace context",
+  "workspace-settings": "Workspace settings",
+  "workspace-create": "Create workspace",
   documents: "Mission documents",
   notifications: "Needs your attention",
   people: "Workspace people",

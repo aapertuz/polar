@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import { createElement, type ComponentType } from "react";
 import type { OverlayKind } from "@/components/ui/overlay.types";
 import type { OverlayBodyProps } from "@/pages/home/components/HomeOverlays";
 import { SAMPLE_CALENDAR } from "@/pages/home/fixtures/home-preview.fixtures";
@@ -10,10 +10,24 @@ import { NotificationsOverlay } from "@/pages/home/components/overlays/Notificat
 import { PeopleOverlay } from "@/pages/home/components/overlays/PeopleOverlay";
 import { ProposalOverlay } from "@/pages/home/components/overlays/ProposalOverlay";
 import { CalendarOverlay } from "@/pages/home/components/overlays/CalendarOverlay";
-import { ActionDetail } from "@/features/missions/components/ActionDetail";
 import { DetailOverlay } from "@/pages/home/components/overlays/DetailOverlay";
+import { ActionDetail } from "@/features/missions/components/ActionDetail";
 import { WindowMenuOverlay } from "@/pages/home/components/overlays/WindowMenuOverlay";
-import { WorkspaceContextSurface } from "@/features/workspace-context/components/WorkspaceContextSurface";
+import { WorkspaceSettingsSurface } from "@/pages/home/components/overlays/WorkspaceSettingsSurface";
+import { WorkspaceCreateSurface } from "@/features/workspaces/components/WorkspaceCreateSurface";
+function WorkspaceSettingsOverlay(props: OverlayBodyProps) {
+  return createElement(WorkspaceSettingsSurface, {
+    model: props.workspaceSettings,
+    open: props.open,
+    close: props.close,
+  });
+}
+function WorkspaceCreateOverlay(props: OverlayBodyProps) {
+  return createElement(WorkspaceCreateSurface, {
+    model: props.workspaceSettings,
+    close: props.close,
+  });
+}
 export interface OverlayDefinition {
   Component: ComponentType<OverlayBodyProps>;
   title: string;
@@ -22,9 +36,14 @@ export interface OverlayDefinition {
 export const overlayRegistry: Record<OverlayKind, OverlayDefinition> = {
   search: { Component: SearchOverlay, title: "Find a mission", surface: "dialog" },
   launcher: { Component: LauncherOverlay, title: "Your workspace", surface: "popover" },
-  "workspace-context": {
-    Component: WorkspaceContextSurface,
-    title: "Workspace context",
+  "workspace-settings": {
+    Component: WorkspaceSettingsOverlay,
+    title: "Workspace settings",
+    surface: "dialog",
+  },
+  "workspace-create": {
+    Component: WorkspaceCreateOverlay,
+    title: "Create workspace",
     surface: "dialog",
   },
   documents: { Component: DocumentsOverlay, title: "Mission documents", surface: "popover" },

@@ -41,9 +41,26 @@ pub fn load_from(entry: &Entry) -> Result<AuthVault> {
                     session.access_token.is_empty()
                         || session.email.len() > 320
                         || uuid::Uuid::parse_str(&session.polar_user_id).is_err()
-                        || session.workspace_id.is_empty()
-                        || session.workspace_id.len() > 200
-                        || session.workspace_name.len() > 120
+                        || session
+                            .workspace_id
+                            .as_ref()
+                            .is_some_and(|id| uuid::Uuid::parse_str(id).is_err())
+                        || session
+                            .workspace_name
+                            .as_ref()
+                            .is_some_and(|name| name.chars().count() > 120)
+                        || session
+                            .default_workspace_id
+                            .as_ref()
+                            .is_some_and(|id| uuid::Uuid::parse_str(id).is_err())
+                        || session.workspaces.len() > 500
+                        || session.workspaces.iter().any(|workspace| {
+                            uuid::Uuid::parse_str(&workspace.id).is_err()
+                                || workspace.name.trim().is_empty()
+                                || workspace.name.chars().count() > 120
+                                || !matches!(workspace.privacy.as_str(), "private" | "shared")
+                                || !matches!(workspace.role.as_str(), "owner" | "member")
+                        })
                 })
             {
                 return Err(AuthError::storage());
@@ -87,8 +104,11 @@ mod tests {
             access_token: "private-session-token".into(),
             email: "user@example.test".into(),
             polar_user_id: uuid::Uuid::new_v4().to_string(),
-            workspace_id: "workspace-1".into(),
-            workspace_name: "Personal workspace".into(),
+            workspace_id: Some(uuid::Uuid::new_v4().to_string()),
+            workspace_name: Some("My workspace".into()),
+            workspace_privacy: Some("private".into()),
+            workspaces: Vec::new(),
+            default_workspace_id: None,
             expires_at: now() + 86400,
         }
     }
@@ -106,6 +126,35 @@ mod tests {
             restored.session.as_ref().unwrap().email,
             "user@example.test"
         );
+    }
+
+    #[test]
+    fn legacy_workspace_credentials_deserialize_with_workspace_cache_defaults() {
+        let entry = mock_entry();
+        let device_id = uuid::Uuid::new_v4().to_string();
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let workspace_id = uuid::Uuid::new_v4().to_string();
+        let legacy = serde_json::json!({
+            "version": 1,
+            "device_id": device_id,
+            "session": {
+                "access_token": "legacy-token",
+                "email": "person@example.test",
+                "polar_user_id": user_id,
+                "workspace_id": workspace_id,
+                "workspace_name": "Old workspace",
+                "expires_at": now() + 3600
+            }
+        });
+        entry.set_password(&legacy.to_string()).unwrap();
+
+        let restored = load_from(&entry).unwrap();
+        let session = restored.session.unwrap();
+        assert_eq!(session.workspace_id.as_deref(), Some(workspace_id.as_str()));
+        assert_eq!(session.workspace_name.as_deref(), Some("Old workspace"));
+        assert!(session.workspaces.is_empty());
+        assert_eq!(session.workspace_privacy, None);
+        assert_eq!(session.default_workspace_id, None);
     }
 
     #[test]

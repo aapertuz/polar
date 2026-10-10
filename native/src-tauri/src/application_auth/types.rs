@@ -48,14 +48,32 @@ pub struct AuthVault {
     pub session: Option<SessionCredential>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SessionCredential {
     pub access_token: String,
     pub email: String,
     pub polar_user_id: String,
-    pub workspace_id: String,
-    pub workspace_name: String,
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    #[serde(default)]
+    pub workspace_name: Option<String>,
+    #[serde(default)]
+    pub workspace_privacy: Option<String>,
+    #[serde(default)]
+    pub workspaces: Vec<WorkspaceSummary>,
+    #[serde(default)]
+    pub default_workspace_id: Option<String>,
     pub expires_at: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSummary {
+    pub id: String,
+    pub name: String,
+    pub privacy: String,
+    pub role: String,
+    pub created_at: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -63,7 +81,12 @@ pub struct SessionCredential {
 pub struct AuthStatus {
     pub authenticated: bool,
     pub email: Option<String>,
+    pub user_id: Option<String>,
+    pub selected_workspace_id: Option<String>,
     pub workspace_name: Option<String>,
+    pub workspace_privacy: Option<String>,
+    pub workspaces: Vec<WorkspaceSummary>,
+    pub default_workspace_id: Option<String>,
     pub operation: Option<String>,
     pub user_code: Option<String>,
     pub verification_url: Option<String>,
@@ -75,7 +98,12 @@ impl AuthStatus {
         Self {
             authenticated: false,
             email: None,
+            user_id: None,
+            selected_workspace_id: None,
             workspace_name: None,
+            workspace_privacy: None,
+            workspaces: Vec::new(),
+            default_workspace_id: None,
             operation: None,
             user_code: None,
             verification_url: None,
@@ -86,7 +114,12 @@ impl AuthStatus {
         Self {
             authenticated: true,
             email: Some(session.email.clone()),
-            workspace_name: Some(session.workspace_name.clone()),
+            user_id: Some(session.polar_user_id.clone()),
+            selected_workspace_id: session.workspace_id.clone(),
+            workspace_name: session.workspace_name.clone(),
+            workspace_privacy: session.workspace_privacy.clone(),
+            workspaces: session.workspaces.clone(),
+            default_workspace_id: session.default_workspace_id.clone(),
             operation: None,
             user_code: None,
             verification_url: None,

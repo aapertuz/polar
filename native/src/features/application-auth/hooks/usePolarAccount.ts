@@ -7,7 +7,12 @@ import type { PolarAuthStatus, PolarSignOutResult } from "@/features/application
 const EMPTY_STATUS: PolarAuthStatus = {
   authenticated: false,
   email: null,
+  userId: null,
+  selectedWorkspaceId: null,
   workspaceName: null,
+  workspacePrivacy: null,
+  workspaces: [],
+  defaultWorkspaceId: null,
   operation: null,
   userCode: null,
   verificationUrl: null,
@@ -138,6 +143,16 @@ export function usePolarAccount() {
     }
   }, [status.verificationUrl]);
 
+  const selectWorkspace = useCallback(
+    async (workspaceId: string) => {
+      if (!desktop) throw new Error("Workspace selection requires the Polar desktop app.");
+      const next = await invoke<PolarAuthStatus>("polar_workspace_select", { workspaceId });
+      if (mounted.current) setStatus(next);
+      return next;
+    },
+    [desktop],
+  );
+
   return {
     status,
     operation,
@@ -149,6 +164,7 @@ export function usePolarAccount() {
     cancel,
     signOut,
     openVerification,
+    selectWorkspace,
     reload: load,
   };
 }

@@ -55,7 +55,7 @@ test("empty default keeps desktop composition and opens Quick AI", () => {
   assert.match(home, /\{mission \? \(\s*<HomeMissionWindow model=\{model\} \/>/);
   assert.match(
     home,
-    /<EmptyWorkspace\s+missionLoadFailed=\{missionLoadFailed\}\s+onRetry=\{model\.refreshMissions\}/,
+    /<EmptyWorkspace\s+missionLoadFailed=\{missionLoadFailed\}\s+hasWorkspace=\{Boolean\(model\.workspaceId\)\}\s+authenticated=\{account\.status\.authenticated\}\s+onRetry=\{model\.refreshMissions\}/,
   );
   const emptyWorkspace = read("pages/home/components/EmptyWorkspace.tsx");
   assert.match(emptyWorkspace, /Your saved missions are unchanged/);

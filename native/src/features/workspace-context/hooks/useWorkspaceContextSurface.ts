@@ -3,8 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useWorkspaceContext } from "@/features/workspace-context/hooks/useWorkspaceContext";
 import type { WorkspaceSource } from "@/features/workspace-context/hooks/useWorkspaceContext";
 
-export function useWorkspaceContextSurface() {
-  const model = useWorkspaceContext();
+export function useWorkspaceContextSurface(workspaceId: string, accountId: string | null) {
+  const model = useWorkspaceContext(workspaceId, accountId);
   const [editing, setEditing] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editText, setEditText] = useState("");
@@ -32,7 +32,15 @@ export function useWorkspaceContextSurface() {
       (item) => item.id === event.currentTarget.dataset.sourceId,
     );
     if (!source) return;
-    void saveSource(source, editTitle, editText, model.refresh, setEditing, model.setFailure);
+    void saveSource(
+      workspaceId,
+      source,
+      editTitle,
+      editText,
+      model.refresh,
+      setEditing,
+      model.setFailure,
+    );
   };
   const handleCancelEdit = () => setEditing(null);
   const handleImportDocument = () => {
@@ -78,6 +86,7 @@ export function useWorkspaceContextSurface() {
 }
 
 async function saveSource(
+  workspaceId: string,
   source: WorkspaceSource,
   title: string,
   extractedText: string,
@@ -87,6 +96,7 @@ async function saveSource(
 ) {
   try {
     await invoke("polar_workspace_context_source_replace", {
+      workspaceId,
       sourceId: source.id,
       expectedRevision: source.revision,
       source: {

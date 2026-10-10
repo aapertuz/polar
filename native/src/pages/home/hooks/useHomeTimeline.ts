@@ -5,12 +5,12 @@ export function useHomeTimeline(desktop: boolean) {
   const [drawerOpen, setDrawerOpen] = useState(HOME_DEFAULTS.drawerOpen);
   const [expanded, setExpanded] = useState(HOME_DEFAULTS.expanded);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const resetExpanded = () => setExpanded(false);
-  const toggleExpanded = () => setExpanded((value) => !value);
-  const toggleTimeline = () => {
+  const resetExpanded = useCallback(() => setExpanded(false), []);
+  const toggleExpanded = useCallback(() => setExpanded((value) => !value), []);
+  const toggleTimeline = useCallback(() => {
     if (desktop) setTimelineVisible((value) => !value);
     else setDrawerOpen((value) => !value);
-  };
+  }, [desktop]);
   return {
     timelineVisible,
     expanded,

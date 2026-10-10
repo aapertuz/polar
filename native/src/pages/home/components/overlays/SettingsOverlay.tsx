@@ -1,9 +1,10 @@
 import { ChatgptConnection } from "@/features/providers/components/ChatgptConnection";
 import { PolarAccount } from "@/features/application-auth/components/PolarAccount";
-export function SettingsOverlay() {
+import type { usePolarAccount } from "@/features/application-auth/hooks/usePolarAccount";
+export function SettingsOverlay({ account }: { account: ReturnType<typeof usePolarAccount> }) {
   return (
     <>
-      <PolarAccount />
+      <PolarAccount model={account} />
       <ChatgptConnection />
       <section className="provider-unavailable" aria-labelledby="claude-heading">
         <div className="provider-heading">

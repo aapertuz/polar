@@ -4,11 +4,13 @@ use tauri::State;
 
 async fn request(
     state: &ApplicationAuthState,
+    workspace_id: &str,
     method: reqwest::Method,
     path: &str,
     body: Option<Value>,
     revision: Option<u32>,
 ) -> Result<Value, String> {
+    validate_id(workspace_id)?;
     let account = internal_session(state)
         .await
         .map_err(|error| error.message)?;
@@ -20,7 +22,7 @@ async fn request(
         .client
         .request(method, url)
         .bearer_auth(account.access_token)
-        .header("x-polar-workspace-id", account.workspace_id);
+        .header("x-polar-workspace-id", workspace_id);
     if let Some(revision) = revision {
         builder = builder.header("if-match", revision);
     }
@@ -46,9 +48,11 @@ async fn request(
 #[tauri::command]
 pub async fn polar_workspace_context_get(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
 ) -> Result<Value, String> {
     request(
         &state,
+        &workspace_id,
         reqwest::Method::GET,
         "api/app/workspace-context",
         None,
@@ -60,14 +64,17 @@ pub async fn polar_workspace_context_get(
 #[tauri::command]
 pub async fn polar_workspace_context_save_brief(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     brief: String,
     expected_revision: u32,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     if brief.len() > 8000 || expected_revision == 0 {
         return Err("Workspace brief must be 8,000 characters or fewer. Refresh and retry.".into());
     }
     request(
         &state,
+        &workspace_id,
         reqwest::Method::PUT,
         "api/app/workspace-context/brief",
         Some(json!({"brief": brief, "expectedRevision": expected_revision})),
@@ -79,11 +86,14 @@ pub async fn polar_workspace_context_save_brief(
 #[tauri::command]
 pub async fn polar_workspace_context_source_add(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     source: Value,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_source(&source)?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::POST,
         "api/app/workspace-context/sources",
         Some(json!({"source": source})),
@@ -95,10 +105,12 @@ pub async fn polar_workspace_context_source_add(
 #[tauri::command]
 pub async fn polar_workspace_context_source_replace(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     source_id: String,
     source: Value,
     expected_revision: u32,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&source_id)?;
     validate_source(&source)?;
     if source.get("id").and_then(Value::as_str) != Some(source_id.as_str())
@@ -108,6 +120,7 @@ pub async fn polar_workspace_context_source_replace(
     }
     request(
         &state,
+        &workspace_id,
         reqwest::Method::PUT,
         &format!("api/app/workspace-context/sources/{source_id}"),
         Some(json!({"source": source, "expectedRevision": expected_revision})),
@@ -119,15 +132,18 @@ pub async fn polar_workspace_context_source_replace(
 #[tauri::command]
 pub async fn polar_workspace_context_source_archive(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     source_id: String,
     expected_revision: u32,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&source_id)?;
     if expected_revision == 0 {
         return Err("Refresh the workspace source before removing it.".into());
     }
     request(
         &state,
+        &workspace_id,
         reqwest::Method::DELETE,
         &format!("api/app/workspace-context/sources/{source_id}"),
         None,

@@ -1,7 +1,8 @@
 export type OverlayKind =
   | "search"
   | "launcher"
-  | "workspace-context"
+  | "workspace-settings"
+  | "workspace-create"
   | "documents"
   | "settings"
   | "notifications"

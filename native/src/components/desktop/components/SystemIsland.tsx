@@ -7,10 +7,17 @@ interface Props {
   open: (request: OverlayRequest) => void;
   openQuickAi: (trigger?: HTMLElement) => void;
   quickAiOpen: boolean;
+  quickAiDisabled?: boolean;
   demo?: boolean;
 }
 
-export function SystemIsland({ open, openQuickAi, quickAiOpen, demo = false }: Props) {
+export function SystemIsland({
+  open,
+  openQuickAi,
+  quickAiOpen,
+  quickAiDisabled = false,
+  demo = false,
+}: Props) {
   const { time, handleQuickAi, openNotifications, openPeople, openLauncher } = useSystemIsland(
     open,
     openQuickAi,
@@ -27,6 +34,8 @@ export function SystemIsland({ open, openQuickAi, quickAiOpen, demo = false }: P
         aria-haspopup="dialog"
         aria-expanded={quickAiOpen}
         onClick={handleQuickAi}
+        disabled={quickAiDisabled}
+        title={quickAiDisabled ? "Create or select a workspace first" : "Open Quick AI"}
       >
         <span className="island-mark" aria-hidden="true">
           <PolarMark size={19} />

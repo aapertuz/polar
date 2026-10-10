@@ -9,10 +9,11 @@ import { EmptyHomeOverlays } from "@/pages/home/components/EmptyHomeOverlays";
 import { HomeOverlays } from "@/pages/home/components/HomeOverlays";
 import { QuickAiSurface } from "@/features/quick-ai/components/QuickAiSurface";
 import { useHomeScreen } from "@/pages/home/hooks/useHomeScreen";
+import type { usePolarAccount } from "@/features/application-auth/hooks/usePolarAccount";
 import { HOME_MOTION } from "@/pages/home/constants/home.constants";
 import "@/pages/home/styles/home.css";
-export function HomeScreen() {
-  const model = useHomeScreen();
+export function HomeScreen({ account }: { account: ReturnType<typeof usePolarAccount> }) {
+  const model = useHomeScreen(account);
   const {
     selected,
     mission,
@@ -32,7 +33,7 @@ export function HomeScreen() {
     quickAiMission,
     openQuickAiCommand,
     openQuickAiNewMission,
-    openWorkspaceContext,
+    openWorkspaceSettingsFromQuickAi,
   } = model;
   return (
     <MotionConfig reducedMotion="user" transition={HOME_MOTION}>
@@ -48,6 +49,7 @@ export function HomeScreen() {
           open={open}
           openQuickAi={openQuickAiCommand}
           quickAiOpen={quickAi.session.opened}
+          quickAiDisabled={!model.workspaceId}
         />
         <div className="desktop-layout">
           <MissionSwitcher
@@ -56,6 +58,12 @@ export function HomeScreen() {
             selected={selected}
             select={select}
             openQuickAi={openQuickAiNewMission}
+            workspaces={account.status.workspaces}
+            selectedWorkspaceId={model.workspaceId}
+            selectWorkspace={model.selectWorkspace}
+            openWorkspaceSettings={model.openWorkspaceSettings}
+            openWorkspaceCreate={model.openWorkspaceCreate}
+            canCreateMission={Boolean(model.workspaceId)}
           />
           <div
             className={`desktop-workspace ${desktop && !timelineVisible ? "timeline-hidden" : ""}`}
@@ -65,7 +73,11 @@ export function HomeScreen() {
             ) : (
               <EmptyWorkspace
                 missionLoadFailed={missionLoadFailed}
+                hasWorkspace={Boolean(model.workspaceId)}
+                authenticated={account.status.authenticated}
                 onRetry={model.refreshMissions}
+                onCreateWorkspace={model.openWorkspaceCreate}
+                onOpenSettings={model.openWorkspaceSettings}
               />
             )}
             {showTimeline && (
@@ -105,6 +117,8 @@ export function HomeScreen() {
               toggleTimeline={toggleTimeline}
               open={open}
               updateAction={model.updateAction}
+              account={account}
+              workspaceSettings={model.workspaceSettings}
             />
           ) : (
             <EmptyHomeOverlays
@@ -114,15 +128,17 @@ export function HomeScreen() {
               reset={windows.reset}
               timelineVisible={showTimeline}
               toggleTimeline={toggleTimeline}
+              account={account}
+              workspaceSettings={model.workspaceSettings}
             />
           ))}
         <AnimatePresence>
-          {quickAi.session.opened && (
+          {quickAi.visible && quickAi.session.opened && (
             <QuickAiSurface
               mission={quickAiMission}
               session={quickAi.session}
               model={quickAi}
-              openWorkspaceContext={openWorkspaceContext}
+              openWorkspaceSettings={openWorkspaceSettingsFromQuickAi}
             />
           )}
         </AnimatePresence>

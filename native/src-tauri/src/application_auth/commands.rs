@@ -10,7 +10,7 @@ const DESKTOP_LABEL: &str = "This Polar desktop";
 pub(crate) struct InternalSession {
     pub access_token: String,
     pub device_id: String,
-    pub workspace_id: String,
+    pub polar_user_id: String,
 }
 
 pub(crate) async fn internal_session(state: &ApplicationAuthState) -> Result<InternalSession> {
@@ -25,7 +25,7 @@ pub(crate) async fn internal_session(state: &ApplicationAuthState) -> Result<Int
     Ok(InternalSession {
         access_token: session.access_token,
         device_id: vault.device_id,
-        workspace_id: session.workspace_id,
+        polar_user_id: session.polar_user_id,
     })
 }
 
@@ -50,24 +50,19 @@ struct DeviceTokenError {
     error: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct BootstrapResponse {
     user: BootstrapUser,
-    workspace: BootstrapWorkspace,
+    workspaces: Vec<WorkspaceSummary>,
+    default_workspace_id: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 struct BootstrapUser {
     id: String,
     email: String,
     name: String,
-}
-
-#[derive(Deserialize)]
-struct BootstrapWorkspace {
-    id: String,
-    name: String,
-    role: String,
 }
 
 #[derive(Deserialize)]
@@ -217,14 +212,29 @@ async fn get_bootstrap(
         )
     })?;
     if uuid::Uuid::parse_str(&account.user.id).is_err()
-        || account.user.email.len() > 320
+        || account.user.email.chars().count() > 320
         || !account.user.email.contains('@')
-        || account.user.name.is_empty()
-        || account.user.name.len() > 120
-        || uuid::Uuid::parse_str(&account.workspace.id).is_err()
-        || account.workspace.name.is_empty()
-        || account.workspace.name.len() > 120
-        || account.workspace.role != "owner"
+        || account.user.name.trim().is_empty()
+        || account.user.name.chars().count() > 120
+        || account.workspaces.len() > 500
+        || account.workspaces.iter().any(|workspace| {
+            uuid::Uuid::parse_str(&workspace.id).is_err()
+                || workspace.name.trim().is_empty()
+                || workspace.name.chars().count() > 120
+                || !matches!(workspace.privacy.as_str(), "private" | "shared")
+                || !matches!(workspace.role.as_str(), "owner" | "member")
+                || workspace.created_at.is_empty()
+                || workspace.created_at.len() > 64
+        })
+        || account
+            .default_workspace_id
+            .as_ref()
+            .is_some_and(|default_id| {
+                !account
+                    .workspaces
+                    .iter()
+                    .any(|workspace| &workspace.id == default_id)
+            })
     {
         return Err(AuthError::new(
             "invalid_response",
@@ -232,6 +242,36 @@ async fn get_bootstrap(
         ));
     }
     Ok(account)
+}
+
+fn update_session_from_bootstrap(
+    session: &mut SessionCredential,
+    account: &BootstrapResponse,
+    requested_selection: Option<&str>,
+) {
+    let selected = requested_selection
+        .and_then(|id| {
+            account
+                .workspaces
+                .iter()
+                .find(|workspace| workspace.id == id)
+        })
+        .or_else(|| {
+            account.default_workspace_id.as_ref().and_then(|id| {
+                account
+                    .workspaces
+                    .iter()
+                    .find(|workspace| &workspace.id == id)
+            })
+        })
+        .or_else(|| account.workspaces.first());
+    session.email = account.user.email.clone();
+    session.polar_user_id = account.user.id.clone();
+    session.workspace_id = selected.map(|workspace| workspace.id.clone());
+    session.workspace_name = selected.map(|workspace| workspace.name.clone());
+    session.workspace_privacy = selected.map(|workspace| workspace.privacy.clone());
+    session.workspaces = account.workspaces.clone();
+    session.default_workspace_id = account.default_workspace_id.clone();
 }
 
 async fn register_device(
@@ -357,22 +397,14 @@ fn set_progress(state: &ApplicationAuthState, status: AuthStatus) {
 pub async fn polar_auth_status(state: State<'_, ApplicationAuthState>) -> Result<AuthStatus> {
     let active_operation = {
         let progress = state.progress.lock().map_err(|_| AuthError::network())?;
-        progress.operation.is_some().then(|| AuthStatus {
-            authenticated: progress.authenticated,
-            email: progress.email.clone(),
-            workspace_name: progress.workspace_name.clone(),
-            operation: progress.operation.clone(),
-            user_code: progress.user_code.clone(),
-            verification_url: progress.verification_url.clone(),
-            message: progress.message.clone(),
-        })
+        progress.operation.is_some().then(|| progress.clone())
     };
     if let Some(progress) = active_operation {
         return Ok(progress);
     }
     let (guard, cancel) = state.begin()?;
     let (_guard, mut vault) = store::load(guard, &cancel, &state.credential_scope).await?;
-    let Some(saved) = vault.session.as_ref() else {
+    let Some(saved) = vault.session.as_ref().cloned() else {
         return Ok(AuthStatus::empty());
     };
     let restored: Result<BootstrapResponse> = async {
@@ -384,17 +416,15 @@ pub async fn polar_auth_status(state: State<'_, ApplicationAuthState>) -> Result
     match restored {
         Ok(account) => {
             if let Some(credential) = vault.session.as_mut() {
-                credential.email = account.user.email;
-                credential.polar_user_id = account.user.id;
-                credential.workspace_id = account.workspace.id;
-                credential.workspace_name = account.workspace.name;
+                let previous_selection = credential.workspace_id.clone();
+                update_session_from_bootstrap(credential, &account, previous_selection.as_deref());
             }
             state.commit_if_active(&cancel, || store::save(&state.credential_scope, &vault))?;
             Ok(AuthStatus::from_session(
                 vault.session.as_ref().ok_or_else(AuthError::storage)?,
             ))
         }
-        Err(error) if error.code == "session_invalid" || error.code == "membership_required" => {
+        Err(error) if error.code == "session_invalid" => {
             clear_session(&mut vault);
             state.commit_if_active(&cancel, || store::save(&state.credential_scope, &vault))?;
             Ok(AuthStatus {
@@ -402,10 +432,11 @@ pub async fn polar_auth_status(state: State<'_, ApplicationAuthState>) -> Result
                 ..AuthStatus::empty()
             })
         }
-        Err(error) => Ok(AuthStatus {
-            message: Some(error.message),
-            ..AuthStatus::empty()
-        }),
+        Err(error) => {
+            let mut status = AuthStatus::from_session(&saved);
+            status.message = Some(error.message);
+            Ok(status)
+        }
     }
 }
 
@@ -446,23 +477,19 @@ pub async fn polar_auth_connect(
         }
         let verification_url = checked_verification_url(&state, &device)?;
         set_progress(&state, AuthStatus {
-            authenticated: false,
-            email: None,
-            workspace_name: None,
             operation: Some("connecting".into()),
             user_code: Some(device.user_code.clone()),
             verification_url: Some(verification_url.to_string()),
             message: Some("Finish signing in through your browser. Confirm the same code there.".into()),
+            ..AuthStatus::empty()
         });
         if app.opener().open_url(verification_url.as_str(), None::<&str>).is_err() {
             set_progress(&state, AuthStatus {
-                authenticated: false,
-                email: None,
-                workspace_name: None,
                 operation: Some("connecting".into()),
                 user_code: Some(device.user_code.clone()),
                 verification_url: Some(verification_url.to_string()),
                 message: Some("Could not open your browser. Use the verification link below, then approve the matching code.".into()),
+                ..AuthStatus::empty()
             });
         }
 
@@ -471,14 +498,19 @@ pub async fn polar_auth_connect(
         let account = get_bootstrap(&state, &token.access_token, &cancel).await?;
         register_device(&state, &token.access_token, &vault.device_id, &cancel).await?;
         if cancel.is_cancelled() { return Err(AuthError::cancelled()); }
-        vault.session = Some(SessionCredential {
+        let mut session = SessionCredential {
             access_token: token.access_token,
-            email: account.user.email,
-            polar_user_id: account.user.id,
-            workspace_id: account.workspace.id,
-            workspace_name: account.workspace.name,
+            email: account.user.email.clone(),
+            polar_user_id: account.user.id.clone(),
+            workspace_id: None,
+            workspace_name: None,
+            workspace_privacy: None,
+            workspaces: Vec::new(),
+            default_workspace_id: None,
             expires_at: now() + token.expires_in.unwrap_or(60 * 60 * 24 * 30),
-        });
+        };
+        update_session_from_bootstrap(&mut session, &account, None);
+        vault.session = Some(session);
         state.commit_if_active(&cancel, || store::save(&state.credential_scope, &vault))?;
         Ok(AuthStatus::from_session(vault.session.as_ref().ok_or_else(AuthError::storage)?))
     }.await;
@@ -542,6 +574,57 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(response.created_at, "2026-10-08T00:00:00.000Z");
+    }
+
+    #[test]
+    fn bootstrap_restoration_preserves_selection_then_uses_default_then_oldest() {
+        let owner = WorkspaceSummary {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: "First".into(),
+            privacy: "private".into(),
+            role: "owner".into(),
+            created_at: "2026-10-10T00:00:00.000Z".into(),
+        };
+        let shared = WorkspaceSummary {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: "Second".into(),
+            privacy: "shared".into(),
+            role: "member".into(),
+            created_at: "2026-10-11T00:00:00.000Z".into(),
+        };
+        let account = BootstrapResponse {
+            user: BootstrapUser {
+                id: uuid::Uuid::new_v4().to_string(),
+                email: "person@example.test".into(),
+                name: "Person".into(),
+            },
+            workspaces: vec![owner.clone(), shared.clone()],
+            default_workspace_id: Some(owner.id.clone()),
+        };
+        let mut session = SessionCredential {
+            access_token: "private-token".into(),
+            email: "old@example.test".into(),
+            polar_user_id: account.user.id.clone(),
+            workspace_id: Some(shared.id.clone()),
+            workspace_name: Some(shared.name.clone()),
+            workspace_privacy: Some(shared.privacy.clone()),
+            workspaces: Vec::new(),
+            default_workspace_id: None,
+            expires_at: now() + 3600,
+        };
+
+        update_session_from_bootstrap(&mut session, &account, Some(&shared.id));
+        assert_eq!(session.workspace_id.as_deref(), Some(shared.id.as_str()));
+        update_session_from_bootstrap(&mut session, &account, Some("revoked-membership"));
+        assert_eq!(session.workspace_id.as_deref(), Some(owner.id.as_str()));
+        let empty = BootstrapResponse {
+            workspaces: Vec::new(),
+            default_workspace_id: None,
+            ..account
+        };
+        update_session_from_bootstrap(&mut session, &empty, Some(&owner.id));
+        assert_eq!(session.workspace_id, None);
+        assert_eq!(session.workspace_name, None);
     }
 
     #[test]
@@ -621,14 +704,16 @@ mod tests {
 
         let (base, server) = mock_server(StatusCode::OK, json!({
             "user":{"id":uuid::Uuid::new_v4().to_string(),"email":"person@example.test","name":"Person"},
-            "workspace":{"id":uuid::Uuid::new_v4().to_string(),"name":"Personal workspace","role":"owner"}
+            "workspaces":[],
+            "defaultWorkspaceId":null
         })).await;
         state.api_url = base;
         let account = get_bootstrap(&state, "opaque-token", &cancel)
             .await
             .unwrap();
         assert_eq!(account.user.email, "person@example.test");
-        assert!(uuid::Uuid::parse_str(&account.workspace.id).is_ok());
+        assert!(account.workspaces.is_empty());
+        assert_eq!(account.default_workspace_id, None);
         server.abort();
     }
 
@@ -704,8 +789,11 @@ mod tests {
                 access_token: "opaque-private-token".into(),
                 email: "person@example.test".into(),
                 polar_user_id: uuid::Uuid::new_v4().to_string(),
-                workspace_id: "workspace".into(),
-                workspace_name: "Personal workspace".into(),
+                workspace_id: None,
+                workspace_name: None,
+                workspace_privacy: None,
+                workspaces: Vec::new(),
+                default_workspace_id: None,
                 expires_at: now() + 60,
             }),
         };
@@ -724,16 +812,22 @@ mod tests {
             access_token: "existing-session".into(),
             email: "old@example.test".into(),
             polar_user_id: uuid::Uuid::new_v4().to_string(),
-            workspace_id: "workspace-old".into(),
-            workspace_name: "Old workspace".into(),
+            workspace_id: Some(uuid::Uuid::new_v4().to_string()),
+            workspace_name: Some("Old workspace".into()),
+            workspace_privacy: Some("private".into()),
+            workspaces: Vec::new(),
+            default_workspace_id: None,
             expires_at: now() + 3600,
         };
         let proposed = SessionCredential {
             access_token: "late-approved-session".into(),
             email: "new@example.test".into(),
             polar_user_id: uuid::Uuid::new_v4().to_string(),
-            workspace_id: "workspace-new".into(),
-            workspace_name: "New workspace".into(),
+            workspace_id: Some(uuid::Uuid::new_v4().to_string()),
+            workspace_name: Some("New workspace".into()),
+            workspace_privacy: Some("private".into()),
+            workspaces: Vec::new(),
+            default_workspace_id: None,
             expires_at: now() + 3600,
         };
         let mut vault = AuthVault {

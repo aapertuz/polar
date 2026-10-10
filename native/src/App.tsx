@@ -1,6 +1,8 @@
 import { HomeScreen } from "@/pages/home/HomeScreen";
+import { usePolarAccount } from "@/features/application-auth/hooks/usePolarAccount";
 import "@/App.css";
 
 export default function App() {
-  return <HomeScreen />;
+  const account = usePolarAccount();
+  return <HomeScreen account={account} />;
 }

@@ -5,6 +5,10 @@ import { overlayRegistry } from "@/pages/home/config/overlayRegistry";
 import type { OverlayRequest } from "@/components/ui/overlay.types";
 import type { Mission } from "@/features/missions/types/mission.types";
 import type { MissionActionUpdate } from "@polar/contracts";
+import type { usePolarAccount } from "@/features/application-auth/hooks/usePolarAccount";
+import type { useWorkspaceSettings } from "@/features/workspaces/hooks/useWorkspaceSettings";
+type AccountModel = ReturnType<typeof usePolarAccount>;
+type WorkspaceSettingsModel = ReturnType<typeof useWorkspaceSettings>;
 export interface OverlayBodyProps {
   request: OverlayRequest;
   mission: Mission;
@@ -20,6 +24,8 @@ export interface OverlayBodyProps {
     actionId: string,
     updates: MissionActionUpdate,
   ) => Promise<void>;
+  account: AccountModel;
+  workspaceSettings: WorkspaceSettingsModel;
 }
 interface Props extends Omit<OverlayBodyProps, "query" | "setQuery" | "choose"> {}
 const surfaces = {
@@ -37,6 +43,8 @@ export function HomeOverlays({
   toggleTimeline,
   open,
   updateAction,
+  account,
+  workspaceSettings,
 }: Props) {
   const choose = (id: string) => {
     select(id, request.instant);
@@ -57,6 +65,8 @@ export function HomeOverlays({
     open,
     choose,
     updateAction,
+    account,
+    workspaceSettings,
   };
   return (
     <Surface

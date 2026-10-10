@@ -100,10 +100,12 @@ fn valid_reference_ids(ids: &[String], limit: usize) -> bool {
 
 async fn request(
     state: &ApplicationAuthState,
+    workspace_id: &str,
     method: reqwest::Method,
     path: &str,
     body: Option<Value>,
 ) -> Result<Value, String> {
+    validate_id(workspace_id)?;
     let account = internal_session(state)
         .await
         .map_err(|error| error.message)?;
@@ -115,7 +117,7 @@ async fn request(
         .client
         .request(method, url)
         .bearer_auth(account.access_token)
-        .header("x-polar-workspace-id", account.workspace_id);
+        .header("x-polar-workspace-id", workspace_id);
     if let Some(body) = body {
         builder = builder.json(&body);
     }
@@ -136,18 +138,31 @@ async fn request(
 }
 
 #[tauri::command]
-pub async fn polar_mission_drafts(state: State<'_, ApplicationAuthState>) -> Result<Value, String> {
-    request(&state, reqwest::Method::GET, "api/app/mission-drafts", None).await
+pub async fn polar_mission_drafts(
+    state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
+) -> Result<Value, String> {
+    request(
+        &state,
+        &workspace_id,
+        reqwest::Method::GET,
+        "api/app/mission-drafts",
+        None,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn polar_mission_draft_get(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     draft_id: String,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&draft_id)?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::GET,
         &format!("api/app/mission-drafts/{draft_id}"),
         None,
@@ -158,8 +173,10 @@ pub async fn polar_mission_draft_get(
 #[tauri::command]
 pub async fn polar_mission_draft_create(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     goal: String,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     let goal = goal.trim();
     if goal.len() > 4000 {
         return Err("Describe a goal up to 4,000 characters.".into());
@@ -168,6 +185,7 @@ pub async fn polar_mission_draft_create(
         .map_err(|_| "Mission draft is invalid.".to_string())?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::POST,
         "api/app/mission-drafts",
         Some(body),
@@ -178,9 +196,11 @@ pub async fn polar_mission_draft_create(
 #[tauri::command]
 pub async fn polar_mission_draft_send_message(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     draft_id: String,
     content: String,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&draft_id)?;
     let content = content.trim();
     if content.is_empty() || content.len() > 8000 {
@@ -190,6 +210,7 @@ pub async fn polar_mission_draft_send_message(
         .map_err(|_| "Mission message is invalid.".to_string())?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::POST,
         &format!("api/app/mission-drafts/{draft_id}/messages"),
         Some(body),
@@ -200,12 +221,15 @@ pub async fn polar_mission_draft_send_message(
 #[tauri::command]
 pub async fn polar_mission_source_add(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     draft_id: String,
     source: Value,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&draft_id)?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::POST,
         &format!("api/app/mission-drafts/{draft_id}/sources"),
         Some(source),
@@ -216,13 +240,16 @@ pub async fn polar_mission_source_add(
 #[tauri::command]
 pub async fn polar_mission_source_remove(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     draft_id: String,
     source_id: String,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&draft_id)?;
     validate_id(&source_id)?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::DELETE,
         &format!("api/app/mission-drafts/{draft_id}/sources/{source_id}"),
         None,
@@ -233,10 +260,12 @@ pub async fn polar_mission_source_remove(
 #[tauri::command]
 pub async fn polar_mission_activate(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     draft_id: String,
     proposal_id: String,
     revision_hash: String,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&draft_id)?;
     validate_id(&proposal_id)?;
     if revision_hash.len() != 64 || !revision_hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
@@ -249,6 +278,7 @@ pub async fn polar_mission_activate(
     .map_err(|_| "Mission approval is invalid.".to_string())?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::POST,
         &format!("api/app/mission-drafts/{draft_id}/activate"),
         Some(body),
@@ -257,22 +287,35 @@ pub async fn polar_mission_activate(
 }
 
 #[tauri::command]
-pub async fn polar_missions(state: State<'_, ApplicationAuthState>) -> Result<Value, String> {
-    request(&state, reqwest::Method::GET, "api/app/missions", None).await
+pub async fn polar_missions(
+    state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
+) -> Result<Value, String> {
+    request(
+        &state,
+        &workspace_id,
+        reqwest::Method::GET,
+        "api/app/missions",
+        None,
+    )
+    .await
 }
 
 #[tauri::command]
 pub async fn polar_mission_action_update(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     mission_id: String,
     action_id: String,
     updates: Value,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&mission_id)?;
     validate_id(&action_id)?;
     let updates = validate_action_update(updates)?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::PATCH,
         &format!("api/app/missions/{mission_id}/actions/{action_id}"),
         Some(updates),
@@ -283,11 +326,14 @@ pub async fn polar_mission_action_update(
 #[tauri::command]
 pub async fn polar_mission_regenerate(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     mission_id: String,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&mission_id)?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::POST,
         &format!("api/app/missions/{mission_id}/regenerate"),
         None,
@@ -298,11 +344,14 @@ pub async fn polar_mission_regenerate(
 #[tauri::command]
 pub async fn polar_mission_reasoning_cancel(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     request_id: String,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&request_id)?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::POST,
         &format!("api/app/reasoning/{request_id}/cancel"),
         Some(Value::Null),
@@ -313,11 +362,14 @@ pub async fn polar_mission_reasoning_cancel(
 #[tauri::command]
 pub async fn polar_mission_reasoning_retry(
     state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
     request_id: String,
 ) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
     validate_id(&request_id)?;
     request(
         &state,
+        &workspace_id,
         reqwest::Method::POST,
         &format!("api/app/reasoning/{request_id}/retry"),
         Some(Value::Null),

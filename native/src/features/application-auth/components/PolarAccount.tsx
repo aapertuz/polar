@@ -1,8 +1,9 @@
-import { usePolarAccount } from "@/features/application-auth/hooks/usePolarAccount";
+import type { usePolarAccount as usePolarAccountHook } from "@/features/application-auth/hooks/usePolarAccount";
 import "@/features/application-auth/styles/application-auth.css";
 
-export function PolarAccount() {
-  const model = usePolarAccount();
+type AccountModel = ReturnType<typeof usePolarAccountHook>;
+
+export function PolarAccount({ model }: { model: AccountModel }) {
   return (
     <section className="polar-account" aria-labelledby="polar-account-heading">
       <div className="provider-heading">
@@ -25,7 +26,12 @@ export function PolarAccount() {
           {model.status.authenticated && (
             <div className="polar-account-identity">
               <strong>{model.status.email}</strong>
-              <span>{model.status.workspaceName}</span>
+              <span>
+                {model.status.workspaceName ??
+                  (model.status.workspaces.length === 0
+                    ? "No workspaces yet"
+                    : "Choose a workspace")}
+              </span>
             </div>
           )}
           {model.operation === "connecting" && model.status.userCode && (

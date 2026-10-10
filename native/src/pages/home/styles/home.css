@@ -273,15 +273,56 @@
 .progress-ring > span {
   position: relative;
 }
-.workspace-caption {
+.workspace-controls {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 0 8px;
+}
+.workspace-picker-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  font: 400 9px var(--mono);
-  letter-spacing: 0.07em;
+  min-width: 0;
+  color: var(--ink);
+}
+.workspace-picker-label select {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: 500 11px var(--mono);
+  letter-spacing: 0.025em;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.workspace-picker-label select:focus-visible,
+.workspace-control-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.workspace-control-actions {
+  display: grid;
+  gap: 4px;
+}
+.workspace-control-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 7px;
+  padding: 7px 6px;
+  background: transparent;
   color: var(--secondary);
-  margin-top: 28px;
-  padding-left: 8px;
+  text-align: left;
+  font: 400 11px var(--mono);
+  cursor: pointer;
+}
+.workspace-control-button:hover {
+  background: var(--canvas-soft);
+  color: var(--ink);
 }
 .orientation-point {
   width: 7px;
@@ -1519,9 +1560,46 @@
   .switcher-heading h2 {
     display: none;
   }
-  .mission-cards,
-  .workspace-caption {
+  .mission-cards {
     display: none;
+  }
+  .workspace-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 16px auto;
+    padding: 0;
+  }
+  .workspace-picker-label {
+    max-width: min(42vw, 230px);
+    gap: 5px;
+  }
+  .workspace-picker-label .orientation-point {
+    display: none;
+  }
+  .workspace-picker-label select {
+    font-size: 11px;
+  }
+  .workspace-control-actions {
+    display: flex;
+    gap: 2px;
+  }
+  .workspace-control-button {
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+  }
+  .workspace-control-button span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
   .compact-switcher {
     display: flex;
@@ -1750,7 +1828,6 @@
 .checkpoint-list p {
   font-size: 14px;
 }
-.workspace-caption,
 .desktop-footnote {
   color: var(--ink);
 }
@@ -1946,8 +2023,132 @@
 .workspace-note-input {
   min-height: 72px;
 }
+.workspace-settings-surface {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: min(72vh, 760px);
+  overflow: auto;
+  padding-right: 3px;
+}
+.workspace-settings-tabs {
+  position: sticky;
+  top: -1px;
+  display: flex;
+  gap: 6px;
+  padding: 2px 0 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-light);
+  z-index: 1;
+}
+.workspace-settings-tabs button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--secondary);
+  font: 500 12px var(--mono);
+}
+.workspace-settings-tabs button[aria-selected="true"] {
+  border-color: var(--border-light);
+  background: var(--canvas-soft);
+  color: var(--ink);
+}
+.workspace-settings-tabs button:focus-visible,
+.workspace-settings-surface input:focus-visible,
+.workspace-settings-surface select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.workspace-settings-heading,
+.workspace-settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.workspace-settings-heading h3 {
+  margin: 5px 0 0;
+  font-size: 20px;
+  font-weight: 550;
+}
+.workspace-settings-eyebrow {
+  color: var(--secondary);
+  font: 400 9px var(--mono);
+  letter-spacing: 0.08em;
+}
+.workspace-settings-form,
+.workspace-settings-field {
+  display: grid;
+  gap: 11px;
+}
+.workspace-settings-form label,
+.workspace-settings-field label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 550;
+}
+.workspace-settings-form input,
+.workspace-settings-form select,
+.workspace-settings-field select,
+.workspace-settings-delete input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--border-light);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 8px 10px;
+  font: 14px var(--sans);
+}
+.workspace-settings-form input:disabled,
+.workspace-settings-form select:disabled {
+  opacity: 0.7;
+}
+.workspace-settings-note {
+  margin: 0;
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.workspace-settings-field,
+.workspace-settings-delete {
+  border-top: 1px solid var(--border-light);
+  padding-top: 13px;
+}
+.workspace-settings-delete h4 {
+  margin: 0 0 5px;
+  font-size: 14px;
+}
+.workspace-settings-delete p {
+  margin: 0 0 10px;
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.workspace-settings-delete input {
+  margin-bottom: 9px;
+}
+.workspace-delete-button {
+  min-height: 38px;
+  border: 1px solid #a74537;
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff8f5;
+  color: #8b3027;
+  font-size: 12px;
+  font-weight: 550;
+}
+.workspace-delete-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 @media (max-height: 700px) {
-  .workspace-context-surface {
+  .workspace-context-surface,
+  .workspace-settings-surface {
     max-height: 65vh;
   }
 }

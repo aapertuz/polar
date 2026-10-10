@@ -1,8 +1,16 @@
 import { Icon } from "@/components/ui/Icon";
 import { useWorkspaceContextSurface } from "@/features/workspace-context/hooks/useWorkspaceContextSurface";
 
-export function WorkspaceContextSurface({ close }: { close: () => void }) {
-  const model = useWorkspaceContextSurface();
+export function WorkspaceContextSurface({
+  workspaceId,
+  accountId,
+  close,
+}: {
+  workspaceId: string;
+  accountId: string | null;
+  close?: () => void;
+}) {
+  const model = useWorkspaceContextSurface(workspaceId, accountId);
   return (
     <section className="workspace-context-surface" aria-label="Workspace context">
       <p className="overlay-muted">
@@ -39,7 +47,19 @@ export function WorkspaceContextSurface({ close }: { close: () => void }) {
           )}
         </>
       ) : (
-        <p className="workspace-context-readonly">Workspace owners manage this shared context.</p>
+        <>
+          <label className="workspace-context-label" htmlFor="workspace-brief-readonly">
+            Company and workspace brief
+          </label>
+          <textarea
+            id="workspace-brief-readonly"
+            className="workspace-context-textarea"
+            value={model.brief}
+            readOnly
+            aria-readonly="true"
+          />
+          <p className="workspace-context-readonly">Workspace owners manage this shared context.</p>
+        </>
       )}
 
       <div className="workspace-context-heading">
@@ -180,9 +200,11 @@ export function WorkspaceContextSurface({ close }: { close: () => void }) {
       )}
       <div className="workspace-context-footer">
         <span>Workspace sources are inherited by future mission reasoning.</span>
-        <button className="quiet-button" onClick={close}>
-          Done
-        </button>
+        {close && (
+          <button className="quiet-button" onClick={close}>
+            Done
+          </button>
+        )}
       </div>
     </section>
   );

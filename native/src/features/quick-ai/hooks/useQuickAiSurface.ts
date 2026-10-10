@@ -9,7 +9,7 @@ export function useQuickAiSurface(
   close: () => void,
   session: QuickAiSession,
   model: QuickAiModel,
-  openWorkspaceContext: (trigger?: HTMLElement) => void,
+  openWorkspaceSettings: (trigger?: HTMLElement) => void,
 ) {
   const [isPresent, safeToRemove] = usePresence();
   const reducedMotion = Boolean(useReducedMotion());
@@ -97,9 +97,9 @@ export function useQuickAiSurface(
   const handleCancel = useCallback(() => {
     void model.cancelRequest();
   }, [model]);
-  const handleOpenWorkspaceContext = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => openWorkspaceContext(event.currentTarget),
-    [openWorkspaceContext],
+  const handleOpenWorkspaceSettings = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => openWorkspaceSettings(event.currentTarget),
+    [openWorkspaceSettings],
   );
   const handleRefine = useCallback(() => model.refine(), [model]);
   return {
@@ -122,7 +122,7 @@ export function useQuickAiSurface(
     handleRetry,
     handleRefreshPlan,
     handleCancel,
-    handleOpenWorkspaceContext,
+    handleOpenWorkspaceSettings,
     handleRefine,
   };
 }

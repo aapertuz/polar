@@ -248,7 +248,11 @@ struct ReasoningJob {
 pub async fn polar_ai_work_once(
     provider: State<'_, ProviderState>,
     auth: State<'_, ApplicationAuthState>,
+    workspace_id: String,
 ) -> std::result::Result<String, String> {
+    if uuid::Uuid::parse_str(&workspace_id).is_err() {
+        return Err("Workspace ID is invalid.".into());
+    }
     let account = internal_session(&auth)
         .await
         .map_err(|error| error.message)?;
@@ -278,7 +282,7 @@ pub async fn polar_ai_work_once(
         biased;
         _ = cancel.cancelled() => return Err(ProviderError::cancelled().message.into()),
         response = provider.client.get(claim_url).bearer_auth(&account.access_token)
-            .header("x-polar-workspace-id", &account.workspace_id)
+            .header("x-polar-workspace-id", &workspace_id)
             .header("x-polar-device-id", &account.device_id).send() => response.map_err(|_| ProviderError::network().message.to_string())?,
     };
     if !claim.status().is_success() {
@@ -304,7 +308,7 @@ pub async fn polar_ai_work_once(
                 .join(&format!("api/app/reasoning/{}/result", job.id))
                 .map_err(|_| "Polar server URL is invalid.".to_string())?;
             let response = provider.client.post(result_url).bearer_auth(&account.access_token)
-                .header("x-polar-workspace-id", &account.workspace_id)
+                .header("x-polar-workspace-id", &workspace_id)
                 .json(&serde_json::json!({ "deviceId": account.device_id, "leaseToken": job.lease_token, "output": output, "provider": "chatgpt", "model": model }))
                 .send().await.map_err(|_| "Polar could not save the result. It will be safe to retry after the worker lease expires.".to_string())?;
             if response.status().is_success() {
@@ -335,7 +339,7 @@ pub async fn polar_ai_work_once(
                             .client
                             .post(failure_url)
                             .bearer_auth(&account.access_token)
-                            .header("x-polar-workspace-id", &account.workspace_id)
+                            .header("x-polar-workspace-id", &workspace_id)
                             .header("x-polar-device-id", &account.device_id)
                             .json(&serde_json::json!({ "leaseToken": job.lease_token, "errorCode": error_code }))
                             .send()
@@ -360,7 +364,7 @@ pub async fn polar_ai_work_once(
                     .client
                     .post(failure_url)
                     .bearer_auth(&account.access_token)
-                    .header("x-polar-workspace-id", &account.workspace_id)
+                    .header("x-polar-workspace-id", &workspace_id)
                     .header("x-polar-device-id", &account.device_id)
                     .json(&serde_json::json!({ "leaseToken": job.lease_token }))
                     .send()

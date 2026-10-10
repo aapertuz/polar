@@ -9,12 +9,12 @@ type QuickAiModel = ReturnType<typeof useQuickAi>;
 export function QuickAiSurface({
   session,
   model,
-  openWorkspaceContext,
+  openWorkspaceSettings,
 }: {
   mission: unknown;
   session: QuickAiSession;
   model: QuickAiModel;
-  openWorkspaceContext: (trigger?: HTMLElement) => void;
+  openWorkspaceSettings: (trigger?: HTMLElement) => void;
 }) {
   const {
     surfaceRef,
@@ -36,8 +36,8 @@ export function QuickAiSurface({
     handleRetry,
     handleRefreshPlan,
     handleCancel,
-    handleOpenWorkspaceContext,
-  } = useQuickAiSurface(model.closeQuickAi, session, model, openWorkspaceContext);
+    handleOpenWorkspaceSettings,
+  } = useQuickAiSurface(model.closeQuickAi, session, model, openWorkspaceSettings);
   const { chat } = model;
 
   return (
@@ -167,11 +167,11 @@ export function QuickAiSurface({
             <span className="quick-ai-section-label">Using</span>
             <div className="quick-ai-chips" aria-label="Context in use">
               <button
-                className="quick-ai-workspace-context"
+                className="quick-ai-workspace-settings"
                 type="button"
-                onClick={handleOpenWorkspaceContext}
+                onClick={handleOpenWorkspaceSettings}
               >
-                Workspace context · inherited automatically
+                Workspace settings · context inherited automatically
               </button>
               {chat.sources.length === 0 && (
                 <span className="quick-ai-no-context">No context selected</span>
