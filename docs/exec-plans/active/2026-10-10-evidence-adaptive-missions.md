@@ -211,6 +211,15 @@ plan changes -> deterministic policy checks -> updated attention.**
 
 ### Explicit requirements and user-selected behavior
 
+- 2026-10-11: Deployment experimentation follow-up: reduce the shared outbox
+  recovery schedule from every minute to seven-minute cron increments. Acceptance:
+  only `mission-outbox-recovery` changes to `*/7 * * * *`; immediate event dispatch,
+  recovery batching, and retries retain their current behavior. Cron runs at
+  minutes 0, 7, 14, 21, 28, 35, 42, 49, and 56 each hour, with a four-minute
+  hour-boundary gap. This is 6,480 scheduled runs per 30 days, or approximately
+  12,960 Inngest executions counting each run and its one step, before retries
+  and mission activity. Verify with `pnpm verify`; deployment and Inngest resync
+  remain separate from this source change.
 - 2026-10-10: Implement adaptive planning and execution context; defer external
   integrations and external tools.
 - 2026-10-10: Actions remain incomplete until sufficient evidence is established.
@@ -250,6 +259,21 @@ plan changes -> deterministic policy checks -> updated attention.**
   routine updates compared with the architecture's V0 approval wording.
 
 ## Verification
+
+### Recovery schedule follow-up (2026-10-11)
+
+- Completed the requested source change: `mission-outbox-recovery` now uses
+  `*/7 * * * *`; immediate dispatch, batch size, and retry configuration are
+  unchanged. A Node assertion against `server/dist/missions.js` instantiated
+  the compiled Inngest functions and confirmed the cron trigger and two retries.
+- `pnpm verify`: passed on the approved rerun outside the sandbox, including
+  38 native frontend tests, 66 Rust tests, and 32 server tests. The first run
+  passed checks/builds but two Rust tests could not bind local sockets
+  (`PermissionDenied`, `Operation not permitted`).
+- No deployment or live Inngest schedule observation was performed. Next action
+  for this follow-up: deploy the backend and resync its Inngest app to register
+  the new cron. The broader adaptive-missions plan remains active with its
+  existing unfinished implementation and verification criteria.
 
 ### Handoff preparation
 

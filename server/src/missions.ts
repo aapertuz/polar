@@ -2135,7 +2135,7 @@ export function createMissionFunctions(inngest: Inngest, db: PolarDatabase) {
       },
     ),
     inngest.createFunction(
-      { id: "mission-outbox-recovery", triggers: [{ cron: "* * * * *" }], retries: 2 },
+      { id: "mission-outbox-recovery", triggers: [{ cron: "*/7 * * * *" }], retries: 2 },
       async ({ step }) =>
         step.run("recover-undelivered-outbox", async () => {
           const pending = await db
