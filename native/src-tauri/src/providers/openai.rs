@@ -394,8 +394,8 @@ fn mission_response_schema() -> serde_json::Value {
     };
     let action = serde_json::json!({
         "type": "object", "additionalProperties": false,
-        "properties": { "title": text(180), "detail": text(1000), "priority": { "type": "string", "enum": ["High", "Medium", "Low"] }, "dueOn": { "anyOf": [{ "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }, { "type": "null" }] }, "dependsOn": strings(180, 40) },
-        "required": ["title", "detail", "priority", "dueOn", "dependsOn"]
+        "properties": { "title": text(180), "detail": text(1000), "category": text(40), "priority": { "type": "string", "enum": ["High", "Medium", "Low"] }, "dueOn": { "anyOf": [{ "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }, { "type": "null" }] }, "dependsOn": strings(180, 40) },
+        "required": ["title", "detail", "category", "priority", "dueOn", "dependsOn"]
     });
     let checkpoint = serde_json::json!({
         "type": "object", "additionalProperties": false,
@@ -513,6 +513,21 @@ mod tests {
     }
     use scheduling::tests::{candidate, patch, test_clock};
 
+    #[test]
+    fn planning_requires_a_short_category_for_every_action() {
+        let schema = mission_response_schema();
+        let action = &schema["properties"]["proposal"]["anyOf"][0]["properties"]["checkpoints"]
+            ["items"]["properties"]["actions"]["items"];
+        assert!(action["required"]
+            .as_array()
+            .unwrap()
+            .contains(&serde_json::json!("category")));
+        assert_eq!(
+            action["properties"]["category"]["pattern"],
+            r"^[\s\S]{1,40}$"
+        );
+    }
+
     #[tokio::test]
     async fn creation_and_regeneration_both_run_the_separate_schedule_request() {
         for payload in [
@@ -554,6 +569,14 @@ mod tests {
             assert_eq!(
                 output["proposal"]["checkpoints"][0]["actions"][0]["title"],
                 "Prepare rollback"
+            );
+            assert_eq!(
+                output["proposal"]["checkpoints"][0]["actions"][0]["category"],
+                "Ops"
+            );
+            assert_eq!(
+                output["proposal"]["checkpoints"][0]["actions"][1]["category"],
+                "Dev"
             );
         }
     }

@@ -292,11 +292,11 @@ pub(super) mod tests {
                 "deadlineAt": "2026-10-15T05:00:00Z", "assessment": "Original assessment", "recommendation": "Original recommendation",
                 "checkpoints": [
                     { "name": "Portal released", "detail": "Customers can sign in; keep rollback available.", "actions": [
-                        { "title": "Enable access", "detail": "Enable access after the checks pass.", "priority": "High", "dueOn": "2026-10-13", "dependsOn": ["Run smoke checks"] }
+                        { "title": "Enable access", "detail": "Enable access after the checks pass.", "category": "Ops", "priority": "High", "dueOn": "2026-10-13", "dependsOn": ["Run smoke checks"] }
                     ] },
                     { "name": "Release verified", "detail": "Smoke checks and rollback pass.", "actions": [
-                        { "title": "Run smoke checks", "detail": "Check the login path and record the results.", "priority": "Medium", "dueOn": null, "dependsOn": ["Prepare rollback"] },
-                        { "title": "Prepare rollback", "detail": "Keep the previous version available.", "priority": "Low", "dueOn": null, "dependsOn": [] }
+                        { "title": "Run smoke checks", "detail": "Check the login path and record the results.", "category": "Dev", "priority": "Medium", "dueOn": null, "dependsOn": ["Prepare rollback"] },
+                        { "title": "Prepare rollback", "detail": "Keep the previous version available.", "category": "Ops", "priority": "Low", "dueOn": null, "dependsOn": [] }
                     ] }
                 ],
                 "risks": ["Customers may find issues."], "assumptions": ["The prior version remains available."]
