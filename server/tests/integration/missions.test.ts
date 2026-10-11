@@ -36,7 +36,14 @@ test("development mission flow persists context, clarification, proposal, activa
       headers: { authorization: `Bearer ${token}` },
     });
     assert.equal(bootstrap.statusCode, 200);
-    const workspaceId = bootstrap.json().workspaces[0].id as string;
+    const createdWorkspace = await app.inject({
+      method: "POST",
+      url: "/api/app/workspaces",
+      headers: { authorization: `Bearer ${token}` },
+      payload: { name: "Mission verification", privacy: "private" },
+    });
+    assert.equal(createdWorkspace.statusCode, 200, createdWorkspace.body);
+    const workspaceId = createdWorkspace.json().workspace.id as string;
     const headers = { authorization: `Bearer ${token}`, "x-polar-workspace-id": workspaceId };
     const emptyContext = await app.inject({
       method: "GET",

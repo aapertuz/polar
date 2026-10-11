@@ -77,6 +77,8 @@ test("development Neon supports real sign-in, device approval, bootstrap, and re
       headers: { authorization },
     });
     assert.equal(first.statusCode, 200);
+    assert.deepEqual(first.json().workspaces, [], "An account must exist before workspace setup");
+    assert.equal(first.json().defaultWorkspaceId, null);
     const repeated = await app.inject({
       method: "GET",
       url: "/api/app/bootstrap",
@@ -165,7 +167,15 @@ test("development authorization rejects cross-workspace access, renews sessions,
       headers: first.headers,
     });
     assert.equal(bootstrap.statusCode, 200);
-    const identity = bootstrap.json();
+    assert.deepEqual(bootstrap.json().workspaces, []);
+    const created = await app.inject({
+      method: "POST",
+      url: "/api/app/workspaces",
+      headers: first.headers,
+      payload: { name: "Authorization workspace", privacy: "private" },
+    });
+    assert.equal(created.statusCode, 200, created.body);
+    const identity = { ...bootstrap.json(), workspaces: [created.json().workspace] };
     await t.test(
       "concurrent bootstrap returns one committed account and workspace list",
       async () => {

@@ -88,9 +88,11 @@ pnpm --filter @polar/server db:migrate
 
 The migration keeps Better Auth user, session, account, verification, and device
 code tables separate from Polar users, workspaces, memberships, and registered
-devices. The first authenticated bootstrap creates a user's Polar record, default
-workspace, and owner membership in one transaction. Existing users are not
-granted membership again if it has been removed.
+devices. The first authenticated bootstrap creates the user's Polar record;
+new accounts have no workspace until the user creates one during onboarding.
+Workspace creation adds the workspace and owner membership in one transaction.
+Existing users retain their workspaces and are not granted membership again if
+it has been removed.
 
 Production migration is a separate, explicit command after development verification:
 

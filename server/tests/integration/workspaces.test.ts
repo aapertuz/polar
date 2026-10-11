@@ -45,10 +45,26 @@ test("development workspaces enforce privacy, defaults, lifecycle, and empty acc
     const owner = await account("Workspace owner");
     const member = await account("Workspace member");
     const outsider = await account("Workspace outsider");
-    const initialWorkspace = owner.bootstrap.workspaces[0];
+    assert.deepEqual(owner.bootstrap.workspaces, []);
+    assert.deepEqual(member.bootstrap.workspaces, []);
+    assert.deepEqual(outsider.bootstrap.workspaces, []);
+    const initialCreated = await app.inject({
+      method: "POST",
+      url: "/api/app/workspaces",
+      headers: owner.headers,
+      payload: { name: "My workspace", privacy: "private" },
+    });
+    assert.equal(initialCreated.statusCode, 200, initialCreated.body);
+    const initialWorkspace = initialCreated.json().workspace;
     assert.equal(initialWorkspace.name, "My workspace");
     assert.equal(initialWorkspace.privacy, "private");
     assert.equal(owner.bootstrap.defaultWorkspaceId, null);
+    const restored = await app.inject({
+      method: "GET",
+      url: "/api/app/bootstrap",
+      headers: owner.headers,
+    });
+    assert.deepEqual(restored.json().workspaces, [initialWorkspace]);
     const outsiderPrivateContext = await app.inject({
       method: "GET",
       url: "/api/app/workspace-context",

@@ -25,7 +25,7 @@ export async function bootstrapAccount(
   authUser: AuthenticatedUser,
 ): Promise<BootstrapResponse> {
   return db.transaction(async (tx) => {
-    const [insertedPolar] = await tx
+    await tx
       .insert(polarUser)
       .values({
         id: crypto.randomUUID(),
@@ -33,8 +33,7 @@ export async function bootstrapAccount(
         email: authUser.email,
         displayName: authUser.name,
       })
-      .onConflictDoNothing({ target: polarUser.authUserId })
-      .returning({ id: polarUser.id });
+      .onConflictDoNothing({ target: polarUser.authUserId });
 
     const [polar] = await tx
       .select()
@@ -42,21 +41,6 @@ export async function bootstrapAccount(
       .where(eq(polarUser.authUserId, authUser.id))
       .limit(1);
     if (!polar) throw new Error("Polar user bootstrap did not produce a user.");
-
-    if (insertedPolar) {
-      const initialWorkspaceId = crypto.randomUUID();
-      await tx.insert(workspace).values({
-        id: initialWorkspaceId,
-        name: "My workspace",
-        privacy: "private",
-        ownerUserId: polar.id,
-      });
-      await tx.insert(workspaceMembership).values({
-        workspaceId: initialWorkspaceId,
-        userId: polar.id,
-        role: "owner",
-      });
-    }
 
     const workspaces = await tx
       .select({
