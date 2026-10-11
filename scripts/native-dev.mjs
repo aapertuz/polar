@@ -243,6 +243,9 @@ export function prepareApp(binary, pid) {
     throw new Error("Development runner requires an owned session.");
   if (!Number.isInteger(pid) || pid <= 0) throw new Error("Invalid native runner PID.");
   mkdirSync(dirname(appBinary), { recursive: true });
+  const resources = join(appPath, "Contents/Resources");
+  mkdirSync(resources, { recursive: true });
+  copyFileSync(join(root, "native/src-tauri/icons/icon.icns"), join(resources, "icon.icns"));
   const plist = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -250,6 +253,7 @@ export function prepareApp(binary, pid) {
 <key>CFBundleDisplayName</key><string>Polar Dev</string>
 <key>CFBundleIdentifier</key><string>${appId}</string>
 <key>CFBundleExecutable</key><string>polar</string>
+<key>CFBundleIconFile</key><string>icon.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>0.1.0</string>
 <key>NSHighResolutionCapable</key><true/>
