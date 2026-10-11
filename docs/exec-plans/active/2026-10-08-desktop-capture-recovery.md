@@ -498,3 +498,12 @@ terminal with approved local socket access (9 checker, 23 launcher/review,
 2 environment, 38 native, 66 Rust, and 32 server tests, plus both builds).
 `git diff --check` passed. Next action: commit and push the verified correction
 through the enabled hook, then record the remote confirmation.
+
+Publishing follow-up is complete: correction `7834033` was pushed to GitHub's
+`main` using `git push origin main` from a terminal. The enabled pre-push hook
+ran the entire `pnpm verify` suite successfully before GitHub accepted the
+`86725e7..7834033` update. The history secret scan covered 209 commits and found
+no leaks under the existing narrow disposable-test-key exception. No hook was
+bypassed. The broader capture plan remains Active; next action is still the
+changed-binding recovery investigation, with the external -3811 trigger and
+cross-Space coverage unresolved.
