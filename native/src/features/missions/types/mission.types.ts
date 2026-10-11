@@ -13,6 +13,7 @@ export interface MissionAction {
   id?: string;
   title: string;
   detail: string;
+  category?: string;
   dueOn?: string | null;
   priority?: ActionPriority;
   status?: ActionStatus;

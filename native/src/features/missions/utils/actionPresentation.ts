@@ -2,6 +2,7 @@ export interface ActionPresentationInput {
   id?: string;
   title: string;
   detail: string;
+  category?: string;
   priority: string;
   status: string;
   dependencies?: string[];
@@ -24,6 +25,7 @@ export interface PresentedMissionAction {
   id?: string;
   title: string;
   detail: string;
+  category: string;
   priority: "High" | "Medium" | "Low" | undefined;
   status: "upcoming" | "completed";
   dependencies: string[];
@@ -43,6 +45,7 @@ export function presentActions(
     id: action.id,
     title: action.title,
     detail: action.detail,
+    category: action.category ?? "Uncategorized",
     priority: presentPriority(action.priority),
     status: action.status === "completed" ? "completed" : "upcoming",
     dependencies: action.dependencies ?? [],

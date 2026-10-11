@@ -1,0 +1,20 @@
+.category-pill {
+  display: inline-block;
+  max-width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: 9999px;
+  background: var(--surface-muted);
+  color: var(--ink);
+  font: 500 12px/1.2 var(--mono);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+}
+
+.category-pill-dark {
+  border-color: var(--border-dark);
+  background: var(--window-raised);
+  color: var(--text-dark);
+}

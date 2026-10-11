@@ -3,6 +3,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { MissionActionUpdate } from "@polar/contracts";
 import type { OverlayRequest } from "@/components/ui/overlay.types";
 import { actionTiming } from "@/utils/actionTiming";
+import { visibleActionCategory } from "@/utils/actionCategory";
 import { useCurrentTime } from "@/hooks/useCurrentTime";
 import type { ActionPriority, Mission } from "@/features/missions/types/mission.types";
 
@@ -257,6 +258,7 @@ export function useActionDetail(
     actionId,
     title,
     detail,
+    category: visibleActionCategory(action?.category ?? request.action?.category),
     dueOn,
     priority,
     priorities: PRIORITIES,

@@ -22,6 +22,7 @@ export type OverlayRequest = {
     id?: string;
     timing: string;
     priority?: string;
+    category?: string;
     owner: string;
     ownerInitials: string;
     dueOn?: string | null;

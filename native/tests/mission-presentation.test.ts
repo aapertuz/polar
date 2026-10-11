@@ -12,6 +12,7 @@ test("persisted action fields are presented and completed actions leave upcoming
         id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
         title: "Collect responses",
         detail: "Contact attendees.",
+        category: "HR",
         priority: "high",
         status: "upcoming",
         dependencies: [],
@@ -36,6 +37,8 @@ test("persisted action fields are presented and completed actions leave upcoming
 
   assert.equal(actions[0]?.id, "dddddddd-dddd-4ddd-8ddd-dddddddddddd");
   assert.equal(actions[0]?.priority, "High");
+  assert.equal(actions[0]?.category, "HR");
+  assert.equal(actions[1]?.category, "Uncategorized");
   assert.equal(actions[0]?.dueOn, "2026-10-12");
   assert.deepEqual(actions[0]?.assigneeIds, [
     "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
@@ -47,4 +50,5 @@ test("persisted action fields are presented and completed actions leave upcoming
     upcomingActions(actions).map((action) => action.id),
     ["dddddddd-dddd-4ddd-8ddd-dddddddddddd"],
   );
+  assert.equal(upcomingActions(actions)[0]?.category, "HR");
 });

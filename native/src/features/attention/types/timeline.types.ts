@@ -9,6 +9,7 @@ export interface TimelineAction {
   id?: string;
   title: string;
   detail: string;
+  category?: string;
   dueOn?: string | null;
   priority?: "High" | "Medium" | "Low";
   status?: "upcoming" | "completed";

@@ -1,4 +1,5 @@
 import type { MissionActionUpdate } from "@polar/contracts";
+import { CategoryPill } from "@/components/ui/CategoryPill";
 import { Icon } from "@/components/ui/Icon";
 import type { OverlayRequest } from "@/components/ui/overlay.types";
 import { useActionDetail } from "@/features/missions/hooks/useActionDetail";
@@ -20,6 +21,7 @@ export function ActionDetail({ request, mission, updateAction, workspaceId }: Pr
   const {
     title,
     detail: description,
+    category,
     dueOn,
     priority,
     priorities,
@@ -68,6 +70,12 @@ export function ActionDetail({ request, mission, updateAction, workspaceId }: Pr
       </div>
       <h2 className={`action-detail-title ${completed ? "is-complete" : ""}`}>{title}</h2>
       <div className="action-metadata" aria-label="Action properties">
+        {category && (
+          <p className="action-category">
+            <span>Category</span>
+            <CategoryPill category={category} tone="dark" />
+          </p>
+        )}
         <div className="action-deadline-field">
           <label className="action-property action-deadline-control">
             <Icon name="calendar" size={20} />

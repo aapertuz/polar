@@ -13,6 +13,7 @@ export function useMissionPlan(mission: Mission, open: (request: OverlayRequest)
         id: action.id,
         timing: action.dueOn ?? "No deadline",
         priority: action.priority,
+        category: action.category,
         owner: action.assigneeIds?.[0] ?? "—",
         ownerInitials: "—",
         dueOn: action.dueOn,

@@ -1,3 +1,4 @@
+import { CategoryPill } from "@/components/ui/CategoryPill";
 import type { TimelineData } from "@/features/attention/types/timeline.types";
 export function UpcomingTimelineItem({
   item,
@@ -14,17 +15,20 @@ export function UpcomingTimelineItem({
         <span className={`timeline-marker ${index === 0 ? "urgent" : ""}`} aria-hidden="true" />
         <span className="timeline-item-copy">
           <strong>{item.title}</strong>
-          <span>
-            {item.timing}
-            {item.priority && (
-              <>
-                {" "}
-                ·{" "}
-                <span className={item.priority === "High" ? "high-priority" : ""}>
-                  {item.priority}
-                </span>
-              </>
-            )}
+          <span className="timeline-item-metadata">
+            <CategoryPill category={item.category} />
+            <span>
+              {item.timing}
+              {item.priority && (
+                <>
+                  {" "}
+                  ·{" "}
+                  <span className={item.priority === "High" ? "high-priority" : ""}>
+                    {item.priority}
+                  </span>
+                </>
+              )}
+            </span>
           </span>
         </span>
         <span className="avatar" aria-label={`Owner ${item.ownerName}`}>

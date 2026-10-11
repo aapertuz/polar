@@ -750,6 +750,13 @@
 .timeline-item-copy > span {
   color: var(--secondary);
   font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.timeline-item-metadata {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
 }
 .high-priority {
   color: var(--red-deep);

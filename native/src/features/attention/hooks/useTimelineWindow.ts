@@ -29,6 +29,7 @@ export function useTimelineWindow(
         id: item.id,
         timing: item.timing,
         priority: item.priority,
+        category: item.category,
         owner: item.ownerName,
         ownerInitials: item.owner,
         dueOn: item.dueOn,
