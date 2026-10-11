@@ -83,10 +83,10 @@ test("Cargo runner exec preserves native PID and arguments, including paths with
     child.stdout.on("data", (chunk) => {
       output += chunk;
     });
-    await new Promise((resolveExit, reject) => {
+    await new Promise((resolveClose, reject) => {
       child.once("error", reject);
-      child.once("exit", (code) =>
-        code === 0 ? resolveExit() : reject(new Error(`Runner exit ${code}`)),
+      child.once("close", (code) =>
+        code === 0 ? resolveClose() : reject(new Error(`Runner exit ${code}`)),
       );
     });
     assert.deepEqual(JSON.parse(readFileSync(record)), { binary: "source binary", pid: child.pid });
@@ -113,16 +113,19 @@ test("concurrent starters recover a stale lease with exactly one winner", async 
       Array.from(
         { length: 8 },
         () =>
-          new Promise((resolveExit, reject) => {
+          new Promise((resolveClose, reject) => {
             const child = spawn(process.execPath, [worker]);
+            // Make exit precede stdout delivery so waiting for exit cannot pass by timing luck.
+            child.stdout.pause();
+            child.once("exit", () => child.stdout.resume());
             let output = "";
             child.stdout.on("data", (chunk) => {
               output += chunk;
             });
             child.once("error", reject);
-            child.once("exit", (code) =>
+            child.once("close", (code) =>
               code === 0
-                ? resolveExit(output.trim())
+                ? resolveClose(output.trim())
                 : reject(new Error(`Claim worker exit ${code}`)),
             );
           }),

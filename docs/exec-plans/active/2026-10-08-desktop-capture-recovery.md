@@ -441,3 +441,31 @@ in the completed feature plans. No new capture evidence was established.
 Next action remains investigating the changed-binding rejection after recovery
 under the documented bounded procedure. Capture recovery remains Active, with
 the external -3811 trigger and cross-Space coverage unresolved.
+
+### Pre-push launcher test failure — 2026-10-11
+
+The owner reported that the pre-push verification failed in the concurrent
+stale-lease recovery test, counting zero winners instead of one. Acceptance for
+this follow-up: await complete child output before asserting ownership, retain
+a deterministic delayed-output regression, and pass focused stress checks and
+the full pre-push verification command before committing the correction.
+
+The original test passed 100 ordinary repetitions. Delaying each worker's stdout
+until process exit reproduced the exact `0 !== 1` failure: the promise resolves
+on `exit`, which does not guarantee stdout has drained. The same collection
+pattern exists in the Cargo runner test. Both output assertions now await
+`close`. The concurrency test explicitly pauses stdout until `exit`, making the
+original assertion order fail deterministically while preserving the checks for
+one winner and seven rejected starters.
+
+Follow-up acceptance is verified: `pnpm test:native-dev` passed all 23 tests;
+the delayed-output concurrency regression passed 200 repetitions (1,600 worker
+processes); and `pnpm verify`, the command used by the pre-push hook, passed
+with approved local socket access. This includes 9 frontend-checker tests,
+23 launcher/review tests, 2 environment tests, both builds, 38 native tests,
+66 Rust tests, and 32 server tests. `git diff --check` passed. No application
+behavior or packaging changed; no new desktop capture was attempted.
+
+Next action for publishing: retry the Git push after committing this correction.
+The broader plan remains Active; its next investigation is still the
+changed-binding rejection after recovery under the documented bounded procedure.
