@@ -106,7 +106,7 @@ test("concurrent starters recover a stale lease with exactly one winner", async 
       worker,
       `
       import { acquireLease } from ${JSON.stringify(new URL("./native-dev.mjs", import.meta.url).href)};
-      console.log(acquireLease(${JSON.stringify(path)}, { pid: process.pid }, (pid) => pid !== 77));
+      process.stdout.write(String(acquireLease(${JSON.stringify(path)}, { pid: process.pid }, (pid) => pid !== 77)) + "\\n");
     `,
     );
     const results = await Promise.all(
@@ -114,7 +114,10 @@ test("concurrent starters recover a stale lease with exactly one winner", async 
         { length: 8 },
         () =>
           new Promise((resolveClose, reject) => {
-            const child = spawn(process.execPath, [worker]);
+            // Terminal-enabled color must not decorate the worker's machine-readable result.
+            const child = spawn(process.execPath, [worker], {
+              env: { ...process.env, FORCE_COLOR: "1" },
+            });
             // Make exit precede stdout delivery so waiting for exit cannot pass by timing luck.
             child.stdout.pause();
             child.once("exit", () => child.stdout.resume());

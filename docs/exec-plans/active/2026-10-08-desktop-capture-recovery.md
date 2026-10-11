@@ -469,3 +469,32 @@ behavior or packaging changed; no new desktop capture was attempted.
 Next action for publishing: retry the Git push after committing this correction.
 The broader plan remains Active; its next investigation is still the
 changed-binding rejection after recovery under the documented bounded procedure.
+
+### Terminal-color launcher regression and publishing — 2026-10-11
+
+The owner reported the same failure after the output-drain correction and
+explicitly requested pushing until it works. The actual `git push -u origin
+main` passed its enabled pre-push hook and created `origin/main`. However,
+`FORCE_COLOR=1 node --test --test-name-pattern='concurrent starters'
+scripts/native-dev.test.mjs` reproduced the exact failure on the corrected
+tree. Console formatting decorates boolean results with ANSI escapes, so the
+test cannot count them as the literal string `true`. The earlier delayed-output
+reproduction identified an additional test weakness but did not establish the
+cause of the owner's terminal failure.
+
+Acceptance for this follow-up: serialize worker results as plain text, explicitly
+force color in the regression worker environment, retain delayed-output coverage,
+pass verification under terminal/color conditions, and confirm the corrected
+commit reached GitHub through the enabled push hook. Next action: implement the
+plain-text output and forced-color regression, then verify, commit, and push.
+The broader capture investigation remains Active.
+
+Implemented plain stdout serialization, with `FORCE_COLOR=1` explicitly inherited
+by every worker. The forced-color regression failed before serialization changed
+and passed afterward. The combined forced-color/delayed-output case passed 100
+repetitions (800 workers). `FORCE_COLOR=1 pnpm test:native-dev` passed all 23
+tests in a terminal, and `FORCE_COLOR=1 pnpm verify` passed the full suite in a
+terminal with approved local socket access (9 checker, 23 launcher/review,
+2 environment, 38 native, 66 Rust, and 32 server tests, plus both builds).
+`git diff --check` passed. Next action: commit and push the verified correction
+through the enabled hook, then record the remote confirmation.
