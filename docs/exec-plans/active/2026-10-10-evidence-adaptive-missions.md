@@ -310,6 +310,18 @@ approval policy, adaptive plan changes, and durable background recovery.
   of this commit request. The broader plan remains Active, with the reasoning
   stages, approval policy, adaptive changes, and background recovery next.
 
+  Publishing follow-up: the owner subsequently requested pushing. All four
+  category commits, through documentation commit `a7db2ab`, reached GitHub
+  `origin/main` via `git push origin main`; remote acceptance was
+  `3fcf1d6..a7db2ab`. The enabled pre-push `pnpm verify` passed in a terminal,
+  including both builds and 9 checker, 23 desktop tooling, 2 environment,
+  38 native, 67 Rust, and 33 server tests. HEAD and origin/main matched and the
+  tree was clean. Gitleaks was absent from PATH; the existing local audit binary
+  scanned all four commits with redaction and found no leaks. This docs follow-up
+  records that confirmed result; no application source, database, deployment,
+  or desktop behavior changed. Broader plan next action remains the reasoning
+  stages, approval policy, adaptive changes, and background recovery.
+
 - 2026-10-11: User authorized reading current saved actions and assigning logical
   categories directly in the database. Scope established from the current
   development desktop and database: Deliver We Are One Pilot, mission
