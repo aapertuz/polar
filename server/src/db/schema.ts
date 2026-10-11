@@ -329,13 +329,106 @@ export const missionAction = pgTable(
     checkpointName: text("checkpoint_name").notNull(),
     title: text("title").notNull(),
     detail: text("detail").notNull(),
+    completionCriteria: text("completion_criteria").notNull().default(""),
     priority: text("priority").notNull(),
     dependencies: jsonb("dependencies").notNull().default([]),
     position: integer("position").notNull(),
     status: text("status").notNull().default("upcoming"),
+    evidenceStatus: text("evidence_status").notNull().default("awaiting_evidence"),
+    evidenceReason: text("evidence_reason"),
+    archivedAt: timestampColumn("archived_at"),
     dueOn: date("due_on", { mode: "string" }),
   },
   (table) => [index("mission_action_next_idx").on(table.missionId, table.status, table.position)],
+);
+
+export const actionMessage = pgTable(
+  "action_message",
+  {
+    id: text("id").primaryKey(),
+    actionId: text("action_id")
+      .notNull()
+      .references(() => missionAction.id, { onDelete: "cascade" }),
+    authorUserId: text("author_user_id").references(() => polarUser.id, { onDelete: "set null" }),
+    role: text("role").notNull(),
+    content: text("content").notNull(),
+    conclusion: boolean("conclusion").notNull().default(false),
+    idempotencyKey: text("idempotency_key").notNull(),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("action_message_action_idempotency_uq").on(table.actionId, table.idempotencyKey),
+    index("action_message_action_created_idx").on(table.actionId, table.createdAt),
+  ],
+);
+
+export const actionEvidence = pgTable(
+  "action_evidence",
+  {
+    id: text("id").primaryKey(),
+    actionId: text("action_id")
+      .notNull()
+      .references(() => missionAction.id, { onDelete: "cascade" }),
+    submittedBy: text("submitted_by").references(() => polarUser.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(),
+    content: text("content").notNull(),
+    referenceUrl: text("reference_url"),
+    evaluation: text("evaluation").notNull().default("pending"),
+    evaluationReason: text("evaluation_reason"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    revision: integer("revision").notNull().default(1),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("action_evidence_action_idempotency_uq").on(table.actionId, table.idempotencyKey),
+    index("action_evidence_action_created_idx").on(table.actionId, table.createdAt),
+  ],
+);
+
+export const missionAssessment = pgTable("mission_assessment", {
+  missionId: text("mission_id")
+    .primaryKey()
+    .references(() => mission.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("in_progress"),
+  reason: text("reason").notNull(),
+  nextActionId: text("next_action_id").references(() => missionAction.id, { onDelete: "set null" }),
+  revision: integer("revision").notNull().default(1),
+  updatedAt: timestampColumn("updated_at").notNull().defaultNow(),
+});
+
+export const missionPlanChange = pgTable(
+  "mission_plan_change",
+  {
+    id: text("id").primaryKey(),
+    missionId: text("mission_id")
+      .notNull()
+      .references(() => mission.id, { onDelete: "cascade" }),
+    requestedBy: text("requested_by").references(() => polarUser.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(),
+    reason: text("reason").notNull(),
+    payload: jsonb("payload").notNull(),
+    status: text("status").notNull().default("pending_review"),
+    expectedRevision: integer("expected_revision").notNull(),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+    decidedAt: timestampColumn("decided_at"),
+  },
+  (table) => [index("mission_plan_change_mission_status_idx").on(table.missionId, table.status)],
+);
+
+export const actionFollowUp = pgTable(
+  "action_follow_up",
+  {
+    id: text("id").primaryKey(),
+    actionId: text("action_id")
+      .notNull()
+      .references(() => missionAction.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    dueAt: timestampColumn("due_at").notNull(),
+    status: text("status").notNull().default("scheduled"),
+    createdAt: timestampColumn("created_at").notNull().defaultNow(),
+    deliveredAt: timestampColumn("delivered_at"),
+  },
+  (table) => [index("action_follow_up_due_idx").on(table.status, table.dueAt)],
 );
 
 export const missionActionMember = pgTable(

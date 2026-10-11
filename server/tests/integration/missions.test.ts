@@ -6,7 +6,12 @@ import { createApp } from "../../src/app.js";
 import { createAuth } from "../../src/auth.js";
 import { getServerConfig } from "../../src/config.js";
 import { createDatabase } from "../../src/db/client.js";
-import { authUser } from "../../src/db/schema.js";
+import {
+  actionFollowUp,
+  authUser,
+  missionActionMember,
+  workspaceMembership,
+} from "../../src/db/schema.js";
 
 test("development mission flow persists context, clarification, proposal, activation, and next action", async () => {
   const config = getServerConfig(process.env);
@@ -543,6 +548,179 @@ test("development mission flow persists context, clarification, proposal, activa
       mission.sources.find((source: { scope: string }) => source.scope === "mission").fileName,
       "launch-brief.md",
     );
+    const actionId = mission.actions[0].id as string;
+    const activityUrl = `/api/app/missions/${mission.id}/actions/${actionId}/activity`;
+    const initialActivity = await app.inject({ method: "GET", url: activityUrl, headers });
+    assert.equal(initialActivity.statusCode, 200, initialActivity.body);
+    assert.equal(initialActivity.json().canParticipate, true);
+    assert.equal(initialActivity.json().completionCriteria, "Confirm the rollback path works.");
+    const secondActionId = mission.actions[1].id as string;
+    const dueFollowUpId = randomUUID();
+    await db.insert(actionFollowUp).values({
+      id: dueFollowUpId,
+      actionId: secondActionId,
+      kind: "deadline_approaching",
+      dueAt: new Date(Date.now() - 60_000),
+      status: "scheduled",
+    });
+    const deliveredAttention = await app.inject({
+      method: "GET",
+      url: "/api/app/attention",
+      headers,
+    });
+    assert.equal(deliveredAttention.statusCode, 200, deliveredAttention.body);
+    assert.equal(
+      deliveredAttention
+        .json()
+        .some((item: { actionId: string }) => item.actionId === secondActionId),
+      true,
+    );
+    const [deliveredFollowUp] = await db
+      .select()
+      .from(actionFollowUp)
+      .where(eq(actionFollowUp.id, dueFollowUpId));
+    assert.equal(deliveredFollowUp.status, "delivered");
+    await db.delete(missionActionMember).where(eq(missionActionMember.actionId, actionId));
+    const removedMembershipActivity = await app.inject({
+      method: "GET",
+      url: activityUrl,
+      headers,
+    });
+    assert.equal(removedMembershipActivity.statusCode, 200);
+    assert.equal(removedMembershipActivity.json().canParticipate, false);
+    const ownerMessageDenied = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}/messages`,
+      headers,
+      payload: {
+        content: "I own the mission, but I am not an action member.",
+        idempotencyKey: randomUUID(),
+        conclusion: true,
+      },
+    });
+    assert.equal(ownerMessageDenied.statusCode, 403);
+    assert.equal(ownerMessageDenied.json().error, "ACTION_MEMBERSHIP_REQUIRED");
+    const ownerEvidenceDenied = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}/evidence`,
+      headers,
+      payload: { kind: "text", content: "Rollback was verified.", idempotencyKey: randomUUID() },
+    });
+    assert.equal(ownerEvidenceDenied.statusCode, 403);
+    await db.insert(missionActionMember).values({ actionId, userId: bootstrap.json().user.id });
+    const messageKey = randomUUID();
+    const message = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}/messages`,
+      headers,
+      payload: {
+        content: "The rollback rehearsal passed; the production restore path was verified.",
+        idempotencyKey: messageKey,
+        conclusion: true,
+      },
+    });
+    assert.equal(message.statusCode, 200, message.body);
+    assert.equal(message.json().message.conclusion, true);
+    const repeatedMessage = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}/messages`,
+      headers,
+      payload: {
+        content: "The rollback rehearsal passed; the production restore path was verified.",
+        idempotencyKey: messageKey,
+        conclusion: true,
+      },
+    });
+    assert.equal(repeatedMessage.statusCode, 200);
+    assert.equal(repeatedMessage.json().duplicate, true);
+    const evidenceKey = randomUUID();
+    const evidence = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}/evidence`,
+      headers,
+      payload: {
+        kind: "reference",
+        content: "Rollback rehearsal report",
+        referenceUrl: "https://example.test/rollback",
+        idempotencyKey: evidenceKey,
+      },
+    });
+    assert.equal(evidence.statusCode, 200, evidence.body);
+    assert.equal(evidence.json().evidence.evaluation, "pending");
+    const directCompletion = await app.inject({
+      method: "PATCH",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}`,
+      headers,
+      payload: { status: "completed" },
+    });
+    assert.equal(directCompletion.statusCode, 400);
+    const persistedActivity = await app.inject({ method: "GET", url: activityUrl, headers });
+    assert.equal(persistedActivity.json().messages.length, 1);
+    assert.equal(persistedActivity.json().evidence.length, 1);
+    const evaluationHeaders = { ...headers, "x-polar-device-id": deviceId };
+    const acceptedEvaluation = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}/evaluation`,
+      headers: evaluationHeaders,
+      payload: {
+        expectedRevision: persistedActivity.json().missionRevision,
+        outcome: "accepted",
+        reason:
+          "The human conclusion and attached rehearsal report establish the rollback criterion.",
+        question: null,
+      },
+    });
+    assert.equal(acceptedEvaluation.statusCode, 200, acceptedEvaluation.body);
+    assert.equal(acceptedEvaluation.json().status, "completed");
+    assert.equal(acceptedEvaluation.json().evidenceStatus, "accepted");
+    const staleEvaluation = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}/evaluation`,
+      headers: evaluationHeaders,
+      payload: {
+        expectedRevision: persistedActivity.json().missionRevision,
+        outcome: "insufficient",
+        reason: "Stale assessment must not reopen newer work.",
+        question: null,
+      },
+    });
+    assert.equal(staleEvaluation.statusCode, 409);
+    const secondEvidence = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${secondActionId}/evidence`,
+      headers,
+      payload: {
+        kind: "text",
+        content: "The pilot cohort has completed intake and interviews.",
+        idempotencyKey: randomUUID(),
+      },
+    });
+    assert.equal(secondEvidence.statusCode, 200, secondEvidence.body);
+    const secondActivity = await app.inject({
+      method: "GET",
+      url: `/api/app/missions/${mission.id}/actions/${secondActionId}/activity`,
+      headers,
+    });
+    const secondEvaluation = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${secondActionId}/evaluation`,
+      headers: evaluationHeaders,
+      payload: {
+        expectedRevision: secondActivity.json().missionRevision,
+        outcome: "accepted",
+        reason: "The submitted pilot result establishes the final action criteria.",
+        question: null,
+        missionOutcome: "achieved",
+        missionOutcomeReason: "Both actions are supported and the pilot success criteria are met.",
+      },
+    });
+    assert.equal(secondEvaluation.statusCode, 200, secondEvaluation.body);
+    const outcomeAssessment = await app.inject({
+      method: "GET",
+      url: "/api/app/missions",
+      headers,
+    });
+    assert.equal(outcomeAssessment.json()[0].progressStatus, "achieved");
     const regeneration = await app.inject({
       method: "POST",
       url: `/api/app/missions/${mission.id}/regenerate`,
@@ -627,6 +805,15 @@ test("development mission flow persists context, clarification, proposal, activa
     assert.equal(afterApply.json()[0].actions.length, 2);
     assert.equal(afterApply.json()[0].actions[0].dueOn, "2026-10-10");
     assert.equal(afterApply.json()[0].checkpoints[0].dueOn, "2026-10-14");
+    assert.equal(afterApply.json()[0].actions[0].id, actionId);
+    assert.equal(afterApply.json()[0].actions[0].status, "completed");
+    const activityAfterRegeneration = await app.inject({
+      method: "GET",
+      url: activityUrl,
+      headers,
+    });
+    assert.equal(activityAfterRegeneration.json().messages.length, 1);
+    assert.equal(activityAfterRegeneration.json().evidence.length, 1);
     const oldApply = await app.inject({
       method: "POST",
       url: `/api/app/mission-drafts/${draftId}/activate`,
@@ -697,6 +884,31 @@ test("development mission flow persists context, clarification, proposal, activa
     });
     assert.equal(restored.json().messages.length, 8);
     assert.equal(restored.json().status, "activated");
+    await db
+      .delete(workspaceMembership)
+      .where(eq(workspaceMembership.userId, bootstrap.json().user.id));
+    const revokedWorkspaceMessage = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}/messages`,
+      headers,
+      payload: {
+        content: "Workspace access has been revoked.",
+        idempotencyKey: randomUUID(),
+        conclusion: false,
+      },
+    });
+    assert.equal(revokedWorkspaceMessage.statusCode, 403);
+    const revokedWorkspaceEvidence = await app.inject({
+      method: "POST",
+      url: `/api/app/missions/${mission.id}/actions/${actionId}/evidence`,
+      headers,
+      payload: {
+        kind: "text",
+        content: "Revoked access cannot submit.",
+        idempotencyKey: randomUUID(),
+      },
+    });
+    assert.equal(revokedWorkspaceEvidence.statusCode, 403);
   } finally {
     try {
       await db.delete(authUser).where(eq(authUser.email, email));

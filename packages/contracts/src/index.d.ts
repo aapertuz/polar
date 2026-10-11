@@ -45,9 +45,27 @@ export declare const DeviceRegistrationResponseSchema: z.ZodObject<{
 export type MissionActionUpdate = {
   dueOn?: string | null;
   priority?: "High" | "Medium" | "Low";
-  status?: "upcoming" | "completed";
   assigneeIds?: string[];
   contextSourceIds?: string[];
+};
+export type ActionConversationMessage = {
+  content: string;
+  idempotencyKey: string;
+  conclusion: boolean;
+};
+export type ActionEvidenceSubmission = {
+  kind: "text" | "reference" | "document";
+  content: string;
+  referenceUrl?: string | null;
+  idempotencyKey: string;
+};
+export type ActionEvaluation = {
+  expectedRevision: number;
+  outcome: "accepted" | "insufficient" | "conflicting";
+  reason: string;
+  question: string | null;
+  missionOutcome?: "achieved" | "not_achieved" | "uncertain" | null;
+  missionOutcomeReason?: string | null;
 };
 export type MissionPlan = {
   name: string;
@@ -124,6 +142,9 @@ export declare const ReasoningClaimSchema: z.ZodType<ReasoningClaim>;
 export declare const ReasoningResultSchema: z.ZodType<ReasoningResult>;
 export declare const MissionActivationSchema: z.ZodType<MissionActivation>;
 export declare const MissionActionUpdateSchema: z.ZodType<MissionActionUpdate>;
+export declare const ActionConversationMessageSchema: z.ZodType<ActionConversationMessage>;
+export declare const ActionEvidenceSubmissionSchema: z.ZodType<ActionEvidenceSubmission>;
+export declare const ActionEvaluationSchema: z.ZodType<ActionEvaluation>;
 export declare const WorkspaceContextBriefUpdateSchema: z.ZodType<WorkspaceContextBriefUpdate>;
 export declare const WorkspaceContextSourceInputSchema: z.ZodType<WorkspaceContextSourceInput>;
 export declare const WorkspaceContextSourceMutationSchema: z.ZodType<WorkspaceContextSourceMutation>;

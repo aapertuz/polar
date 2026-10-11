@@ -159,7 +159,6 @@ export const MissionActionUpdateSchema = z
   .object({
     dueOn: z.iso.date().nullable().optional(),
     priority: z.enum(["High", "Medium", "Low"]).optional(),
-    status: z.enum(["upcoming", "completed"]).optional(),
     assigneeIds: z.array(z.uuid()).max(50).optional(),
     contextSourceIds: z.array(z.uuid()).max(80).optional(),
   })
@@ -171,6 +170,43 @@ export const MissionActionUpdateSchema = z
       (!update.contextSourceIds ||
         new Set(update.contextSourceIds).size === update.contextSourceIds.length),
   );
+
+export const ActionConversationMessageSchema = z
+  .object({
+    content: z.string().trim().min(1).max(8000),
+    idempotencyKey: z.uuid(),
+    conclusion: z.boolean().default(false),
+  })
+  .strict();
+export const ActionEvidenceSubmissionSchema = z
+  .object({
+    kind: z.enum(["text", "reference", "document"]),
+    content: z.string().trim().min(1).max(1_000_000),
+    referenceUrl: z.url().max(2048).nullable().optional(),
+    idempotencyKey: z.uuid(),
+  })
+  .strict()
+  .refine((value) => {
+    if (value.kind === "reference") {
+      if (!value.referenceUrl) return false;
+      try {
+        return ["https:", "http:"].includes(new URL(value.referenceUrl).protocol);
+      } catch {
+        return false;
+      }
+    }
+    return !value.referenceUrl;
+  });
+export const ActionEvaluationSchema = z
+  .object({
+    expectedRevision: z.number().int().positive(),
+    outcome: z.enum(["accepted", "insufficient", "conflicting"]),
+    reason: z.string().trim().min(1).max(2000),
+    question: z.string().trim().min(1).max(1000).nullable(),
+    missionOutcome: z.enum(["achieved", "not_achieved", "uncertain"]).nullable().optional(),
+    missionOutcomeReason: z.string().trim().min(1).max(2000).nullable().optional(),
+  })
+  .strict();
 
 export const WorkspaceContextBriefUpdateSchema = z
   .object({ brief: z.string().max(8000), expectedRevision: z.number().int().positive() })
@@ -229,6 +265,9 @@ export const contractJsonSchemas = Object.freeze({
   reasoningResult: z.toJSONSchema(ReasoningResultSchema),
   missionActivation: z.toJSONSchema(MissionActivationSchema),
   missionActionUpdate: z.toJSONSchema(MissionActionUpdateSchema),
+  actionConversationMessage: z.toJSONSchema(ActionConversationMessageSchema),
+  actionEvidenceSubmission: z.toJSONSchema(ActionEvidenceSubmissionSchema),
+  actionEvaluation: z.toJSONSchema(ActionEvaluationSchema),
   workspaceContextBriefUpdate: z.toJSONSchema(WorkspaceContextBriefUpdateSchema),
   workspaceContextSourceInput: z.toJSONSchema(WorkspaceContextSourceInputSchema),
   workspaceContextSourceMutation: z.toJSONSchema(WorkspaceContextSourceMutationSchema),

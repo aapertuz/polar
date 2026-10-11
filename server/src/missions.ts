@@ -1,9 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNull, lt, lte, or } from "drizzle-orm";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import {
   MissionActivationSchema,
   MissionActionUpdateSchema,
+  ActionConversationMessageSchema,
+  ActionEvidenceSubmissionSchema,
+  ActionEvaluationSchema,
   MissionDraftCreateSchema,
   MissionInterpreterOutputSchema,
   MissionMessageSchema,
@@ -21,9 +24,13 @@ import { EXTRACTED_SOURCE_BODY_LIMIT, REASONING_RESULT_BODY_LIMIT } from "./requ
 import { hasValidSchedule } from "./mission-scheduling.js";
 import {
   attentionItem,
+  actionEvidence,
+  actionFollowUp,
+  actionMessage,
   domainEvent,
   mission,
   missionAction,
+  missionAssessment,
   missionActionContext,
   missionActionMember,
   missionDraft,
@@ -916,17 +923,7 @@ export function installMissionRoutes(
             proposalManifest.currentMission.revision !== replacing.revision)
         )
           return { error: "STALE_PROPOSAL" as const };
-        if (replacing) {
-          const progress = await tx
-            .select({ status: missionAction.status })
-            .from(missionAction)
-            .where(eq(missionAction.missionId, replacing.id))
-            .for("update");
-          if (progress.some((action) => action.status !== "upcoming"))
-            return { error: "MISSION_HAS_PROGRESS" as const };
-        }
         const missionId = replacing?.id ?? randomUUID();
-        const firstActionId = randomUUID();
         const sourceReferences = [
           ...proposalManifest.sources
             .filter((source) => source.scope === "workspace")
@@ -963,44 +960,122 @@ export function installMissionRoutes(
           revision: (replacing?.revision ?? 0) + 1,
           createdAt: replacing?.createdAt ?? now,
         };
-        if (replacing) {
-          await tx.update(mission).set(savedMission).where(eq(mission.id, missionId));
-          await tx.delete(missionAction).where(eq(missionAction.missionId, missionId));
-        } else await tx.insert(mission).values(savedMission);
-        const actions = plan.checkpoints.flatMap((checkpoint, checkpointIndex) =>
-          checkpoint.actions.map((action, actionIndex) => ({
+        if (replacing) await tx.update(mission).set(savedMission).where(eq(mission.id, missionId));
+        else await tx.insert(mission).values(savedMission);
+        const previousActions = replacing
+          ? await tx
+              .select()
+              .from(missionAction)
+              .where(and(eq(missionAction.missionId, missionId), isNull(missionAction.archivedAt)))
+              .for("update")
+          : [];
+        const availableByTitle = new Map(
+          previousActions.map((action) => [action.title.toLocaleLowerCase(), action]),
+        );
+        const claimedIds = new Set<string>();
+        const actions: (typeof missionAction.$inferInsert)[] = [];
+        for (const [checkpointIndex, checkpoint] of plan.checkpoints.entries()) {
+          for (const [actionIndex, action] of checkpoint.actions.entries()) {
+            const position = checkpointIndex * 100 + actionIndex;
+            const exactMatch = availableByTitle.get(action.title.toLocaleLowerCase());
+            const existingAction =
+              exactMatch && !claimedIds.has(exactMatch.id)
+                ? exactMatch
+                : previousActions.find(
+                    (candidate) => candidate.position === position && !claimedIds.has(candidate.id),
+                  );
+            if (existingAction) {
+              claimedIds.add(existingAction.id);
+              const updated = {
+                checkpointName: checkpoint.name,
+                title: action.title,
+                detail: action.detail,
+                completionCriteria: action.detail,
+                priority: action.priority.toLowerCase(),
+                dependencies: action.dependsOn,
+                position,
+                dueOn: action.dueOn ?? null,
+                archivedAt: null,
+                ...(existingAction.status === "completed"
+                  ? {}
+                  : { evidenceStatus: "awaiting_evidence", evidenceReason: null }),
+              };
+              await tx
+                .update(missionAction)
+                .set(updated)
+                .where(eq(missionAction.id, existingAction.id));
+              actions.push({ ...existingAction, ...updated });
+            } else {
+              const created = {
+                id: randomUUID(),
+                missionId,
+                checkpointName: checkpoint.name,
+                title: action.title,
+                detail: action.detail,
+                completionCriteria: action.detail,
+                priority: action.priority.toLowerCase(),
+                dependencies: action.dependsOn,
+                position,
+                status: "upcoming",
+                dueOn: action.dueOn ?? null,
+              };
+              await tx.insert(missionAction).values(created);
+              await tx
+                .insert(missionActionMember)
+                .values({ actionId: created.id, userId: access.userId });
+              const actionContexts = sourceReferences.map((source) => ({
+                actionId: created.id,
+                sourceId: source.id,
+              }));
+              if (actionContexts.length)
+                await tx.insert(missionActionContext).values(actionContexts);
+              actions.push(created);
+            }
+            const reconciled = actions[actions.length - 1];
+            await scheduleActionDeadlineFollowUps(tx, reconciled, now);
+          }
+        }
+        const archivedIds = previousActions
+          .filter((action) => !claimedIds.has(action.id))
+          .map((action) => action.id);
+        if (archivedIds.length) {
+          await tx
+            .update(missionAction)
+            .set({ archivedAt: now })
+            .where(inArray(missionAction.id, archivedIds));
+          await tx
+            .update(actionFollowUp)
+            .set({ status: "cancelled" })
+            .where(
+              and(
+                inArray(actionFollowUp.actionId, archivedIds),
+                eq(actionFollowUp.status, "scheduled"),
+              ),
+            );
+          await tx.delete(attentionItem).where(inArray(attentionItem.actionId, archivedIds));
+        }
+        await tx.delete(attentionItem).where(eq(attentionItem.missionId, missionId));
+        const next = actions.find(
+          (action) =>
+            action.status === "upcoming" &&
+            Array.isArray(action.dependencies) &&
+            action.dependencies.every((dependency) =>
+              actions.some(
+                (candidate) => candidate.title === dependency && candidate.status === "completed",
+              ),
+            ),
+        );
+        if (next)
+          await tx.insert(attentionItem).values({
             id: randomUUID(),
+            workspaceId: access.workspaceId,
+            userId: access.userId,
             missionId,
-            checkpointName: checkpoint.name,
-            title: action.title,
-            detail: action.detail,
-            priority: action.priority.toLowerCase(),
-            dependencies: action.dependsOn,
-            position: checkpointIndex * 100 + actionIndex,
-            status: "upcoming",
-            dueOn: action.dueOn ?? null,
-          })),
-        );
-        const firstRow = actions.find((action) => action.title === first.title);
-        if (firstRow) firstRow.id = firstActionId;
-        await tx.insert(missionAction).values(actions);
-        await tx
-          .insert(missionActionMember)
-          .values(actions.map((action) => ({ actionId: action.id, userId: access.userId })));
-        const actionContexts = actions.flatMap((action) =>
-          sourceReferences.map((source) => ({ actionId: action.id, sourceId: source.id })),
-        );
-        if (actionContexts.length) await tx.insert(missionActionContext).values(actionContexts);
-        await tx.insert(attentionItem).values({
-          id: randomUUID(),
-          workspaceId: access.workspaceId,
-          userId: access.userId,
-          missionId,
-          actionId: firstActionId,
-          title: first.title,
-          reason: plan.recommendation,
-          createdAt: now,
-        });
+            actionId: next.id!,
+            title: next.title,
+            reason: plan.recommendation,
+            createdAt: now,
+          });
         await tx
           .update(missionDraft)
           .set({ status: "activated", updatedAt: now })
@@ -1035,13 +1110,11 @@ export function installMissionRoutes(
         return reply.status(activation.error === "DRAFT_NOT_FOUND" ? 404 : 409).send({
           error: activation.error,
           message:
-            activation.error === "MISSION_HAS_PROGRESS"
-              ? "This mission has execution progress. Its plan cannot be replaced without preserving that progress."
-              : activation.error === "NO_NEXT_ACTION"
-                ? "Add a concrete first action before activating."
-                : activation.error === "WORKSPACE_CONTEXT_CHANGED"
-                  ? "Workspace context changed — refresh the plan before activating."
-                  : "The plan changed. Review the latest proposal before activating.",
+            activation.error === "NO_NEXT_ACTION"
+              ? "Add a concrete first action before activating."
+              : activation.error === "WORKSPACE_CONTEXT_CHANGED"
+                ? "Workspace context changed — refresh the plan before activating."
+                : "The plan changed. Review the latest proposal before activating.",
         });
       }
       return activation;
@@ -1066,7 +1139,7 @@ export function installMissionRoutes(
       if (!parsed.success) {
         return reply.status(400).send({
           error: "INVALID_ACTION_UPDATE",
-          message: "Choose valid action members, context, deadline, priority, or completion state.",
+          message: "Choose valid action members, context, deadline, or priority.",
         });
       }
 
@@ -1123,7 +1196,6 @@ export function installMissionRoutes(
         const actionChanges: Partial<typeof missionAction.$inferInsert> = {};
         let updatedContent: Record<string, unknown> | null = null;
         if (update.priority !== undefined) actionChanges.priority = update.priority.toLowerCase();
-        if (update.status !== undefined) actionChanges.status = update.status;
         if (Object.hasOwn(update, "dueOn")) {
           actionChanges.dueOn = update.dueOn ?? null;
           updatedContent = withActionDeadline(
@@ -1139,6 +1211,13 @@ export function installMissionRoutes(
             .update(missionAction)
             .set(actionChanges)
             .where(eq(missionAction.id, savedAction.id));
+        }
+        if (Object.hasOwn(update, "dueOn")) {
+          await scheduleActionDeadlineFollowUps(
+            tx,
+            { ...savedAction, ...actionChanges },
+            new Date(),
+          );
         }
 
         if (update.assigneeIds !== undefined) {
@@ -1164,10 +1243,6 @@ export function installMissionRoutes(
             );
           }
         }
-        if (update.status === "completed") {
-          await tx.delete(attentionItem).where(eq(attentionItem.actionId, savedAction.id));
-        }
-
         const now = new Date();
         await tx
           .update(mission)
@@ -1226,6 +1301,624 @@ export function installMissionRoutes(
     },
   );
 
+  app.get<{ Params: { missionId: string; actionId: string } }>(
+    "/api/app/missions/:missionId/actions/:actionId/activity",
+    async (request, reply) => {
+      const access = await requireWorkspace(auth, db, request, reply);
+      if (!access) return;
+      const action = await findWorkspaceAction(
+        db,
+        access.workspaceId,
+        request.params.missionId,
+        request.params.actionId,
+        true,
+      );
+      if (!action)
+        return reply
+          .status(404)
+          .send({ error: "ACTION_NOT_FOUND", message: "This action is unavailable." });
+      const [messages, evidence, currentMission, missionActions] = await Promise.all([
+        db
+          .select()
+          .from(actionMessage)
+          .where(eq(actionMessage.actionId, action.id))
+          .orderBy(asc(actionMessage.createdAt)),
+        db
+          .select()
+          .from(actionEvidence)
+          .where(eq(actionEvidence.actionId, action.id))
+          .orderBy(asc(actionEvidence.createdAt)),
+        db
+          .select({ content: mission.content })
+          .from(mission)
+          .where(eq(mission.id, action.missionId))
+          .limit(1),
+        db
+          .select({
+            title: missionAction.title,
+            status: missionAction.status,
+            completionCriteria: missionAction.completionCriteria,
+            evidenceStatus: missionAction.evidenceStatus,
+            evidenceReason: missionAction.evidenceReason,
+          })
+          .from(missionAction)
+          .where(
+            and(eq(missionAction.missionId, action.missionId), isNull(missionAction.archivedAt)),
+          )
+          .orderBy(asc(missionAction.position)),
+      ]);
+      const content = (currentMission[0]?.content ?? {}) as {
+        outcome?: string;
+        successCriteria?: string[];
+      };
+      return {
+        completionCriteria: action.completionCriteria || action.detail,
+        missionRevision: action.missionRevision,
+        evidenceStatus: action.evidenceStatus,
+        evidenceReason: action.evidenceReason,
+        messages,
+        evidence,
+        missionOutcome: content.outcome ?? "",
+        successCriteria: content.successCriteria ?? [],
+        missionActions,
+        canParticipate:
+          !action.archivedAt &&
+          (await isActionMember(db, access.workspaceId, action.id, access.userId)),
+      };
+    },
+  );
+
+  app.post<{ Params: { missionId: string; actionId: string } }>(
+    "/api/app/missions/:missionId/actions/:actionId/messages",
+    async (request, reply) => {
+      const access = await requireWorkspace(auth, db, request, reply);
+      if (!access) return;
+      const parsed = ActionConversationMessageSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, "Enter a valid action message.");
+      const action = await findWorkspaceAction(
+        db,
+        access.workspaceId,
+        request.params.missionId,
+        request.params.actionId,
+      );
+      if (!action)
+        return reply
+          .status(404)
+          .send({ error: "ACTION_NOT_FOUND", message: "This action is unavailable." });
+      const now = new Date();
+      const saved = await db.transaction(async (tx) => {
+        const [membership] = await tx
+          .select({ userId: missionActionMember.userId })
+          .from(missionActionMember)
+          .innerJoin(
+            workspaceMembership,
+            and(
+              eq(workspaceMembership.userId, missionActionMember.userId),
+              eq(workspaceMembership.workspaceId, access.workspaceId),
+            ),
+          )
+          .where(
+            and(
+              eq(missionActionMember.actionId, action.id),
+              eq(missionActionMember.userId, access.userId),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!membership) return { error: "ACTION_MEMBERSHIP_REQUIRED" as const };
+        const [message] = await tx
+          .insert(actionMessage)
+          .values({
+            id: randomUUID(),
+            actionId: action.id,
+            authorUserId: access.userId,
+            role: "human",
+            content: parsed.data.content,
+            conclusion: parsed.data.conclusion,
+            idempotencyKey: parsed.data.idempotencyKey,
+            createdAt: now,
+          })
+          .onConflictDoNothing()
+          .returning();
+        if (message) {
+          const [currentMission] = await tx
+            .select({ revision: mission.revision })
+            .from(mission)
+            .where(eq(mission.id, action.missionId))
+            .for("update")
+            .limit(1);
+          if (currentMission)
+            await tx
+              .update(mission)
+              .set({ revision: currentMission.revision + 1 })
+              .where(eq(mission.id, action.missionId));
+          await tx
+            .update(missionAction)
+            .set({
+              evidenceStatus: "awaiting_evaluation",
+              evidenceReason:
+                "Polar is reviewing the new conversation against the completion criteria.",
+            })
+            .where(eq(missionAction.id, action.id));
+          await tx
+            .update(actionFollowUp)
+            .set({ status: "cancelled" })
+            .where(
+              and(
+                eq(actionFollowUp.actionId, action.id),
+                eq(actionFollowUp.kind, "unanswered_question"),
+                eq(actionFollowUp.status, "scheduled"),
+              ),
+            );
+          await tx.insert(domainEvent).values({
+            id: randomUUID(),
+            workspaceId: access.workspaceId,
+            userId: access.userId,
+            eventType: "mission.action_message_added",
+            payload: { missionId: action.missionId, actionId: action.id, messageId: message.id },
+            createdAt: now,
+          });
+          await tx.insert(outbox).values({
+            id: randomUUID(),
+            eventName: "polar/action.updated",
+            payload: {
+              missionId: action.missionId,
+              actionId: action.id,
+              workspaceId: access.workspaceId,
+            },
+            createdAt: now,
+          });
+        }
+        if (message) return { message, duplicate: false };
+        const [existingMessage] = await tx
+          .select()
+          .from(actionMessage)
+          .where(
+            and(
+              eq(actionMessage.actionId, action.id),
+              eq(actionMessage.idempotencyKey, parsed.data.idempotencyKey),
+            ),
+          )
+          .limit(1);
+        return { message: existingMessage, duplicate: true };
+      });
+      if ("error" in saved)
+        return reply.status(403).send({
+          error: saved.error,
+          message: "Only current members of this action can participate.",
+        });
+      return saved;
+    },
+  );
+
+  app.post<{ Params: { missionId: string; actionId: string } }>(
+    "/api/app/missions/:missionId/actions/:actionId/evidence",
+    { bodyLimit: EXTRACTED_SOURCE_BODY_LIMIT },
+    async (request, reply) => {
+      const access = await requireWorkspace(auth, db, request, reply);
+      if (!access) return;
+      const parsed = ActionEvidenceSubmissionSchema.safeParse(request.body);
+      if (!parsed.success)
+        return invalid(reply, "Submit text, a reference link, or extracted document text.");
+      const action = await findWorkspaceAction(
+        db,
+        access.workspaceId,
+        request.params.missionId,
+        request.params.actionId,
+      );
+      if (!action)
+        return reply
+          .status(404)
+          .send({ error: "ACTION_NOT_FOUND", message: "This action is unavailable." });
+      const now = new Date();
+      const saved = await db.transaction(async (tx) => {
+        const [membership] = await tx
+          .select({ userId: missionActionMember.userId })
+          .from(missionActionMember)
+          .innerJoin(
+            workspaceMembership,
+            and(
+              eq(workspaceMembership.userId, missionActionMember.userId),
+              eq(workspaceMembership.workspaceId, access.workspaceId),
+            ),
+          )
+          .where(
+            and(
+              eq(missionActionMember.actionId, action.id),
+              eq(missionActionMember.userId, access.userId),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!membership) return { error: "ACTION_MEMBERSHIP_REQUIRED" as const };
+        const [evidence] = await tx
+          .insert(actionEvidence)
+          .values({
+            id: randomUUID(),
+            actionId: action.id,
+            submittedBy: access.userId,
+            kind: parsed.data.kind,
+            content: parsed.data.content,
+            referenceUrl: parsed.data.referenceUrl ?? null,
+            evaluation: "pending",
+            idempotencyKey: parsed.data.idempotencyKey,
+            createdAt: now,
+          })
+          .onConflictDoNothing()
+          .returning();
+        if (evidence) {
+          const [currentMission] = await tx
+            .select({ revision: mission.revision })
+            .from(mission)
+            .where(eq(mission.id, action.missionId))
+            .for("update")
+            .limit(1);
+          if (currentMission)
+            await tx
+              .update(mission)
+              .set({ revision: currentMission.revision + 1 })
+              .where(eq(mission.id, action.missionId));
+          await tx
+            .update(missionAction)
+            .set({
+              evidenceStatus: "awaiting_evaluation",
+              evidenceReason: "Evidence is saved and awaiting evaluation.",
+            })
+            .where(eq(missionAction.id, action.id));
+          await tx.insert(domainEvent).values({
+            id: randomUUID(),
+            workspaceId: access.workspaceId,
+            userId: access.userId,
+            eventType: "mission.action_evidence_submitted",
+            payload: {
+              missionId: action.missionId,
+              actionId: action.id,
+              evidenceId: evidence.id,
+            },
+            createdAt: now,
+          });
+          await tx.insert(outbox).values({
+            id: randomUUID(),
+            eventName: "polar/action.updated",
+            payload: {
+              missionId: action.missionId,
+              actionId: action.id,
+              workspaceId: access.workspaceId,
+            },
+            createdAt: now,
+          });
+        }
+        if (evidence) return { evidence, duplicate: false };
+        const [existingEvidence] = await tx
+          .select()
+          .from(actionEvidence)
+          .where(
+            and(
+              eq(actionEvidence.actionId, action.id),
+              eq(actionEvidence.idempotencyKey, parsed.data.idempotencyKey),
+            ),
+          )
+          .limit(1);
+        return { evidence: existingEvidence, duplicate: true };
+      });
+      if ("error" in saved)
+        return reply.status(403).send({
+          error: saved.error,
+          message: "Only current members of this action can submit evidence.",
+        });
+      return saved;
+    },
+  );
+
+  app.post<{ Params: { missionId: string; actionId: string } }>(
+    "/api/app/missions/:missionId/actions/:actionId/evaluation",
+    async (request, reply) => {
+      const access = await requireWorkspace(auth, db, request, reply);
+      if (!access) return;
+      const parsed = ActionEvaluationSchema.safeParse(request.body);
+      if (!parsed.success) return invalid(reply, "Polar returned an invalid action assessment.");
+      const deviceId = header(request, "x-polar-device-id");
+      if (typeof deviceId !== "string" || !(await deviceBelongsTo(db, access.userId, deviceId)))
+        return reply.status(403).send({
+          error: "DEVICE_REQUIRED",
+          message: "This device is not registered to your Polar account.",
+        });
+      const result = await db.transaction(async (tx) => {
+        const [savedMission] = await tx
+          .select()
+          .from(mission)
+          .where(
+            and(
+              eq(mission.id, request.params.missionId),
+              eq(mission.workspaceId, access.workspaceId),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!savedMission) return { error: "MISSION_NOT_FOUND" as const };
+        if (savedMission.revision !== parsed.data.expectedRevision)
+          return { error: "STALE_ACTION" as const };
+        const [savedAction] = await tx
+          .select()
+          .from(missionAction)
+          .where(
+            and(
+              eq(missionAction.id, request.params.actionId),
+              eq(missionAction.missionId, savedMission.id),
+              isNull(missionAction.archivedAt),
+            ),
+          )
+          .for("update")
+          .limit(1);
+        if (!savedAction) return { error: "ACTION_NOT_FOUND" as const };
+        const evidenceRows = await tx
+          .select()
+          .from(actionEvidence)
+          .where(eq(actionEvidence.actionId, savedAction.id));
+        const humanConclusions = await tx
+          .select({ id: actionMessage.id })
+          .from(actionMessage)
+          .where(
+            and(
+              eq(actionMessage.actionId, savedAction.id),
+              eq(actionMessage.role, "human"),
+              eq(actionMessage.conclusion, true),
+            ),
+          )
+          .limit(1);
+        const supported = evidenceRows.length > 0 || humanConclusions.length > 0;
+        const outcome =
+          parsed.data.outcome === "accepted" && !supported ? "insufficient" : parsed.data.outcome;
+        const status = outcome === "accepted" ? "completed" : "upcoming";
+        const evidenceStatus =
+          outcome === "accepted"
+            ? "accepted"
+            : outcome === "conflicting"
+              ? "review"
+              : "insufficient";
+        const now = new Date();
+        await tx
+          .update(missionAction)
+          .set({ status, evidenceStatus, evidenceReason: parsed.data.reason })
+          .where(eq(missionAction.id, savedAction.id));
+        await tx
+          .update(actionEvidence)
+          .set({ evaluation: outcome, evaluationReason: parsed.data.reason })
+          .where(eq(actionEvidence.actionId, savedAction.id));
+        const activeActions = await tx
+          .select()
+          .from(missionAction)
+          .where(
+            and(eq(missionAction.missionId, savedMission.id), isNull(missionAction.archivedAt)),
+          );
+        const evaluatedActions = activeActions.map((candidate) =>
+          candidate.id === savedAction.id ? { ...candidate, status } : candidate,
+        );
+        const nextAction = selectDependencyReadyAction(evaluatedActions);
+        const allActionsComplete =
+          evaluatedActions.length > 0 &&
+          evaluatedActions.every((candidate) => candidate.status === "completed");
+        const outcomeStatus =
+          allActionsComplete && parsed.data.missionOutcome === "achieved"
+            ? "achieved"
+            : allActionsComplete && parsed.data.missionOutcome === "not_achieved"
+              ? "needs_attention"
+              : allActionsComplete
+                ? "outcome_unverified"
+                : outcome === "accepted"
+                  ? "in_progress"
+                  : "needs_attention";
+        const assessmentReason = allActionsComplete
+          ? (parsed.data.missionOutcomeReason ??
+            `All action criteria are accepted, but the mission outcome remains unverified against: ${(savedMission.content as { successCriteria?: string[] }).successCriteria?.join("; ") ?? "the stated success criteria."}`)
+          : outcome === "accepted"
+            ? `Evidence accepted for “${savedAction.title}”. ${nextAction ? `Next ready action: ${nextAction.title}.` : "No dependency-ready action is available; resolve the current blocker."}`
+            : (parsed.data.question ?? parsed.data.reason);
+        if (parsed.data.question) {
+          await tx
+            .insert(actionMessage)
+            .values({
+              id: randomUUID(),
+              actionId: savedAction.id,
+              authorUserId: null,
+              role: "assistant",
+              content: parsed.data.question,
+              conclusion: false,
+              idempotencyKey: `evaluation:${parsed.data.expectedRevision}`,
+              createdAt: now,
+            })
+            .onConflictDoNothing();
+        }
+        await tx.delete(attentionItem).where(eq(attentionItem.actionId, savedAction.id));
+        if (outcome !== "accepted") {
+          await tx.insert(attentionItem).values({
+            id: randomUUID(),
+            workspaceId: access.workspaceId,
+            userId: savedMission.ownerUserId,
+            missionId: savedMission.id,
+            actionId: savedAction.id,
+            title: parsed.data.question ? "Action needs an answer" : "Evidence needs attention",
+            reason: parsed.data.question ?? parsed.data.reason,
+            createdAt: now,
+          });
+        }
+        await tx
+          .update(actionFollowUp)
+          .set({ status: "cancelled" })
+          .where(
+            and(
+              eq(actionFollowUp.actionId, savedAction.id),
+              eq(actionFollowUp.status, "scheduled"),
+            ),
+          );
+        if (outcome !== "accepted" && parsed.data.question) {
+          await tx.insert(actionFollowUp).values({
+            id: randomUUID(),
+            actionId: savedAction.id,
+            kind: "unanswered_question",
+            dueAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+            status: "scheduled",
+            createdAt: now,
+          });
+        }
+        await tx
+          .update(mission)
+          .set({ revision: savedMission.revision + 1 })
+          .where(eq(mission.id, savedMission.id));
+        await tx
+          .insert(missionAssessment)
+          .values({
+            missionId: savedMission.id,
+            status: outcomeStatus,
+            reason: assessmentReason,
+            nextActionId: nextAction?.id ?? null,
+            revision: savedMission.revision + 1,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: missionAssessment.missionId,
+            set: {
+              status: outcomeStatus,
+              reason: assessmentReason,
+              nextActionId: nextAction?.id ?? null,
+              revision: savedMission.revision + 1,
+              updatedAt: now,
+            },
+          });
+        await tx.insert(domainEvent).values({
+          id: randomUUID(),
+          workspaceId: access.workspaceId,
+          userId: access.userId,
+          eventType: "mission.action_evaluated",
+          payload: { missionId: savedMission.id, actionId: savedAction.id, outcome },
+          createdAt: now,
+        });
+        await tx.insert(outbox).values({
+          id: randomUUID(),
+          eventName: "polar/action.evaluated",
+          payload: {
+            missionId: savedMission.id,
+            actionId: savedAction.id,
+            workspaceId: access.workspaceId,
+          },
+          createdAt: now,
+        });
+        return {
+          outcome,
+          status,
+          evidenceStatus,
+          reason: parsed.data.reason,
+          revision: savedMission.revision + 1,
+        };
+      });
+      if ("error" in result) {
+        const status =
+          result.error === "MISSION_NOT_FOUND" || result.error === "ACTION_NOT_FOUND" ? 404 : 409;
+        return reply.status(status).send({
+          error: result.error,
+          message:
+            result.error === "STALE_ACTION"
+              ? "Action context changed while it was being evaluated. Review the latest activity and retry."
+              : "This action is no longer available.",
+        });
+      }
+      return result;
+    },
+  );
+
+  app.get("/api/app/attention", async (request, reply) => {
+    const access = await requireWorkspace(auth, db, request, reply);
+    if (!access) return;
+    const now = new Date();
+    await db.transaction(async (tx) => {
+      const due = await tx
+        .select({ followUp: actionFollowUp, action: missionAction, mission: mission })
+        .from(actionFollowUp)
+        .innerJoin(missionAction, eq(missionAction.id, actionFollowUp.actionId))
+        .innerJoin(mission, eq(mission.id, missionAction.missionId))
+        .where(
+          and(
+            eq(actionFollowUp.status, "scheduled"),
+            eq(missionAction.status, "upcoming"),
+            lte(actionFollowUp.dueAt, now),
+            eq(mission.workspaceId, access.workspaceId),
+            isNull(missionAction.archivedAt),
+          ),
+        )
+        .for("update");
+      for (const row of due) {
+        const recent = await tx
+          .select({ id: actionFollowUp.id })
+          .from(actionFollowUp)
+          .where(
+            and(
+              eq(actionFollowUp.actionId, row.action.id),
+              eq(actionFollowUp.status, "delivered"),
+              gt(actionFollowUp.deliveredAt, new Date(now.getTime() - 24 * 60 * 60 * 1000)),
+            ),
+          )
+          .limit(1);
+        if (recent.length) {
+          await tx
+            .update(actionFollowUp)
+            .set({ status: "coalesced" })
+            .where(eq(actionFollowUp.id, row.followUp.id));
+          continue;
+        }
+        const members = await tx
+          .select({ userId: missionActionMember.userId })
+          .from(missionActionMember)
+          .innerJoin(
+            workspaceMembership,
+            and(
+              eq(workspaceMembership.userId, missionActionMember.userId),
+              eq(workspaceMembership.workspaceId, access.workspaceId),
+            ),
+          )
+          .where(eq(missionActionMember.actionId, row.action.id));
+        for (const member of members) {
+          await tx.insert(attentionItem).values({
+            id: randomUUID(),
+            workspaceId: access.workspaceId,
+            userId: member.userId,
+            missionId: row.mission.id,
+            actionId: row.action.id,
+            title:
+              row.followUp.kind === "unanswered_question"
+                ? "An action needs a reply"
+                : row.followUp.kind === "deadline_approaching"
+                  ? "Action deadline tomorrow"
+                  : "Action is overdue",
+            reason: row.action.title,
+            createdAt: now,
+          });
+        }
+        await tx
+          .update(actionFollowUp)
+          .set({ status: "delivered", deliveredAt: now })
+          .where(eq(actionFollowUp.id, row.followUp.id));
+      }
+    });
+    return db
+      .select({
+        id: attentionItem.id,
+        missionId: attentionItem.missionId,
+        actionId: attentionItem.actionId,
+        title: attentionItem.title,
+        reason: attentionItem.reason,
+        createdAt: attentionItem.createdAt,
+      })
+      .from(attentionItem)
+      .where(
+        and(
+          eq(attentionItem.workspaceId, access.workspaceId),
+          eq(attentionItem.userId, access.userId),
+        ),
+      )
+      .orderBy(desc(attentionItem.createdAt))
+      .limit(20);
+  });
+
   app.get("/api/app/missions", async (request, reply) => {
     const access = await requireWorkspace(auth, db, request, reply);
     if (!access) return;
@@ -1248,11 +1941,21 @@ export function installMissionRoutes(
       initials: personInitials(person.name),
     }));
     const result = [];
+    const missionIds = rows.map((row) => row.id);
+    const assessments = missionIds.length
+      ? await db
+          .select()
+          .from(missionAssessment)
+          .where(inArray(missionAssessment.missionId, missionIds))
+      : [];
+    const assessmentByMission = new Map(
+      assessments.map((assessment) => [assessment.missionId, assessment]),
+    );
     for (const row of rows) {
       const actions = await db
         .select()
         .from(missionAction)
-        .where(eq(missionAction.missionId, row.id))
+        .where(and(eq(missionAction.missionId, row.id), isNull(missionAction.archivedAt)))
         .orderBy(asc(missionAction.position));
       const content = row.content as {
         name: string;
@@ -1333,21 +2036,17 @@ export function installMissionRoutes(
         ids.push(source.sourceId);
         contextIdsByAction.set(source.actionId, ids);
       }
-      const nextAction =
-        actions.find(
-          (action) =>
-            action.status === "upcoming" &&
-            Array.isArray(action.dependencies) &&
-            action.dependencies.length === 0,
-        ) ??
-        actions.find((action) => action.status === "upcoming") ??
-        null;
+      const nextAction = selectDependencyReadyAction(actions);
+      const assessment = assessmentByMission.get(row.id);
       result.push({
         id: row.id,
+        revision: row.revision,
         name: content.name,
         outcome: content.outcome,
         deadlineAt: content.deadlineAt,
-        assessment: content.assessment,
+        assessment: assessment?.reason ?? content.assessment,
+        progressStatus: assessment?.status ?? "in_progress",
+        progressRevision: assessment?.revision ?? row.revision,
         recommendation: content.recommendation,
         checkpoints: content.checkpoints,
         constraints: content.constraints,
@@ -1356,17 +2055,33 @@ export function installMissionRoutes(
         assumptions: content.assumptions,
         currentUserId: access.userId,
         workspacePeople: people,
-        actions: actions.map(({ id, title, detail, priority, status, dependencies, dueOn }) => ({
-          id,
-          title,
-          detail,
-          priority,
-          status,
-          dependencies,
-          dueOn: dueOn ?? null,
-          assigneeIds: assigneeIdsByAction.get(id) ?? [],
-          contextSourceIds: contextIdsByAction.get(id) ?? [],
-        })),
+        actions: actions.map(
+          ({
+            id,
+            title,
+            detail,
+            completionCriteria,
+            evidenceStatus,
+            evidenceReason,
+            priority,
+            status,
+            dependencies,
+            dueOn,
+          }) => ({
+            id,
+            title,
+            detail,
+            completionCriteria: completionCriteria || detail,
+            evidenceStatus: status === "completed" ? "accepted" : evidenceStatus,
+            evidenceReason,
+            priority,
+            status,
+            dependencies,
+            dueOn: dueOn ?? null,
+            assigneeIds: assigneeIdsByAction.get(id) ?? [],
+            contextSourceIds: contextIdsByAction.get(id) ?? [],
+          }),
+        ),
         nextAction,
         sources: content.sourceReferences.map((source) => {
           if (source.scope !== "workspace") return source;
@@ -1923,6 +2638,129 @@ async function requireWorkspace(
     return null;
   }
   return membership[0];
+}
+
+async function findWorkspaceAction(
+  db: PolarDatabase,
+  workspaceId: string,
+  missionId: string,
+  actionId: string,
+  includeArchived = false,
+) {
+  if (!UUID_ID_PATTERN.test(missionId) || !UUID_ID_PATTERN.test(actionId)) return null;
+  const [row] = await db
+    .select({
+      id: missionAction.id,
+      missionId: missionAction.missionId,
+      missionRevision: mission.revision,
+      detail: missionAction.detail,
+      completionCriteria: missionAction.completionCriteria,
+      evidenceStatus: missionAction.evidenceStatus,
+      evidenceReason: missionAction.evidenceReason,
+      archivedAt: missionAction.archivedAt,
+    })
+    .from(missionAction)
+    .innerJoin(mission, eq(mission.id, missionAction.missionId))
+    .where(
+      and(
+        eq(missionAction.id, actionId),
+        eq(mission.id, missionId),
+        eq(mission.workspaceId, workspaceId),
+        ...(includeArchived ? [] : [isNull(missionAction.archivedAt)]),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+async function isActionMember(
+  db: PolarDatabase,
+  workspaceId: string,
+  actionId: string,
+  userId: string,
+) {
+  const [row] = await db
+    .select({ userId: missionActionMember.userId })
+    .from(missionActionMember)
+    .innerJoin(
+      workspaceMembership,
+      and(
+        eq(workspaceMembership.userId, missionActionMember.userId),
+        eq(workspaceMembership.workspaceId, workspaceId),
+      ),
+    )
+    .where(and(eq(missionActionMember.actionId, actionId), eq(missionActionMember.userId, userId)))
+    .limit(1);
+  return Boolean(row);
+}
+
+async function scheduleActionDeadlineFollowUps(
+  tx: Parameters<Parameters<PolarDatabase["transaction"]>[0]>[0],
+  action: { id: string; dueOn?: string | null; status?: string },
+  now: Date,
+) {
+  await tx
+    .update(actionFollowUp)
+    .set({ status: "cancelled" })
+    .where(
+      and(
+        eq(actionFollowUp.actionId, action.id),
+        or(eq(actionFollowUp.kind, "deadline_approaching"), eq(actionFollowUp.kind, "overdue")),
+        eq(actionFollowUp.status, "scheduled"),
+      ),
+    );
+  if (!action.dueOn || action.status === "completed") return;
+  const deadline = new Date(`${action.dueOn}T09:00:00.000Z`);
+  if (Number.isNaN(deadline.getTime())) return;
+  const reminders = [
+    { kind: "deadline_approaching", dueAt: new Date(deadline.getTime() - 24 * 60 * 60 * 1000) },
+    { kind: "overdue", dueAt: new Date(deadline.getTime() + 24 * 60 * 60 * 1000) },
+  ].filter((reminder) => reminder.dueAt > now);
+  if (reminders.length)
+    await tx.insert(actionFollowUp).values(
+      reminders.map((reminder) => ({
+        id: randomUUID(),
+        actionId: action.id,
+        ...reminder,
+        status: "scheduled",
+        createdAt: now,
+      })),
+    );
+}
+
+export function selectDependencyReadyAction<
+  T extends {
+    id: string;
+    title: string;
+    status: string;
+    dependencies: unknown;
+    dueOn: string | null;
+    priority: string;
+    position: number;
+  },
+>(actions: T[]) {
+  const completedTitles = new Set(
+    actions.filter((action) => action.status === "completed").map((action) => action.title),
+  );
+  const priorityRank = (priority: string) =>
+    priority === "high" ? 0 : priority === "medium" ? 1 : 2;
+  return (
+    actions
+      .filter(
+        (action) =>
+          action.status === "upcoming" &&
+          Array.isArray(action.dependencies) &&
+          action.dependencies.every(
+            (dependency) => typeof dependency === "string" && completedTitles.has(dependency),
+          ),
+      )
+      .sort(
+        (a, b) =>
+          (a.dueOn ?? "9999-12-31").localeCompare(b.dueOn ?? "9999-12-31") ||
+          priorityRank(a.priority) - priorityRank(b.priority) ||
+          a.position - b.position,
+      )[0] ?? null
+  );
 }
 
 async function deviceBelongsTo(db: PolarDatabase, userId: string, deviceId: string) {

@@ -4,6 +4,8 @@ import {
   MissionInterpreterOutputSchema,
   MissionActionUpdateSchema,
   MissionPlanSchema,
+  ActionConversationMessageSchema,
+  ActionEvidenceSubmissionSchema,
   WorkspaceContextSourceMutationSchema,
 } from "@polar/contracts";
 import {
@@ -12,6 +14,7 @@ import {
   selectChunks,
   validCitations,
   type ContextManifest,
+  selectDependencyReadyAction,
 } from "../src/missions.js";
 import { missionContextSourceIds, withActionDeadline } from "../src/action-updates.js";
 
@@ -77,7 +80,6 @@ test("action updates validate editable fields and reject empty or duplicated ass
     MissionActionUpdateSchema.safeParse({
       dueOn: null,
       priority: "Low",
-      status: "completed",
       assigneeIds: [memberId],
       contextSourceIds: [sourceId],
     }).success,
@@ -93,9 +95,57 @@ test("action updates validate editable fields and reject empty or duplicated ass
     MissionActionUpdateSchema.safeParse({ contextSourceIds: [sourceId, sourceId] }).success,
     false,
   );
-  assert.equal(MissionActionUpdateSchema.safeParse({ status: "blocked" }).success, false);
+  assert.equal(MissionActionUpdateSchema.safeParse({ status: "completed" }).success, false);
   assert.equal(MissionActionUpdateSchema.safeParse({ priority: "Urgent" }).success, false);
   assert.equal(MissionActionUpdateSchema.safeParse({ title: "Unscoped edit" }).success, false);
+});
+
+test("action activity contracts require idempotency and constrain references", () => {
+  const idempotencyKey = "33333333-3333-4333-8333-333333333333";
+  assert.equal(
+    ActionConversationMessageSchema.safeParse({
+      content: "Verified the outcome.",
+      idempotencyKey,
+      conclusion: true,
+    }).success,
+    true,
+  );
+  assert.equal(
+    ActionConversationMessageSchema.safeParse({ content: "Missing idempotency" }).success,
+    false,
+  );
+  assert.equal(
+    ActionEvidenceSubmissionSchema.safeParse({ kind: "text", content: "Result", idempotencyKey })
+      .success,
+    true,
+  );
+  assert.equal(
+    ActionEvidenceSubmissionSchema.safeParse({
+      kind: "reference",
+      content: "Report",
+      referenceUrl: "https://example.test/report",
+      idempotencyKey,
+    }).success,
+    true,
+  );
+  assert.equal(
+    ActionEvidenceSubmissionSchema.safeParse({
+      kind: "reference",
+      content: "Report",
+      referenceUrl: "file:///private/report",
+      idempotencyKey,
+    }).success,
+    false,
+  );
+  assert.equal(
+    ActionEvidenceSubmissionSchema.safeParse({
+      kind: "document",
+      content: "Extracted report",
+      referenceUrl: "https://example.test",
+      idempotencyKey,
+    }).success,
+    false,
+  );
 });
 
 test("action deadline updates modify exactly one saved plan action and preserve other fields", () => {
@@ -171,6 +221,35 @@ test("proposal dependencies require known unique actions and an acyclic graph", 
       ],
     }),
     false,
+  );
+});
+
+test("next action selection never skips incomplete dependencies or falls back to blocked work", () => {
+  const actions = [
+    {
+      id: "a",
+      title: "Prepare",
+      status: "upcoming",
+      dependencies: [],
+      dueOn: "2026-10-11",
+      priority: "medium",
+      position: 1,
+    },
+    {
+      id: "b",
+      title: "Release",
+      status: "upcoming",
+      dependencies: ["Prepare"],
+      dueOn: "2026-10-10",
+      priority: "high",
+      position: 2,
+    },
+  ];
+  assert.equal(selectDependencyReadyAction(actions)?.id, "a");
+  assert.equal(selectDependencyReadyAction([actions[1]!]), null);
+  assert.equal(
+    selectDependencyReadyAction([{ ...actions[0]!, status: "completed" }, actions[1]!])?.id,
+    "b",
   );
 });
 
