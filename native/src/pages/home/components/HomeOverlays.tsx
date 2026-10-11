@@ -7,6 +7,7 @@ import type { Mission } from "@/features/missions/types/mission.types";
 import type { MissionActionUpdate } from "@polar/contracts";
 import type { usePolarAccount } from "@/features/application-auth/hooks/usePolarAccount";
 import type { useWorkspaceSettings } from "@/features/workspaces/hooks/useWorkspaceSettings";
+import type { AttentionItem } from "@/pages/home/hooks/useBackgroundMissionWorker";
 type AccountModel = ReturnType<typeof usePolarAccount>;
 type WorkspaceSettingsModel = ReturnType<typeof useWorkspaceSettings>;
 export interface OverlayBodyProps {
@@ -26,6 +27,7 @@ export interface OverlayBodyProps {
   ) => Promise<void>;
   account: AccountModel;
   workspaceSettings: WorkspaceSettingsModel;
+  attentionItems: AttentionItem[];
 }
 interface Props extends Omit<OverlayBodyProps, "query" | "setQuery" | "choose"> {}
 const surfaces = {
@@ -45,6 +47,7 @@ export function HomeOverlays({
   updateAction,
   account,
   workspaceSettings,
+  attentionItems,
 }: Props) {
   const choose = (id: string) => {
     select(id, request.instant);
@@ -65,8 +68,10 @@ export function HomeOverlays({
     open,
     choose,
     updateAction,
+    workspaceId: account.status.selectedWorkspaceId ?? undefined,
     account,
     workspaceSettings,
+    attentionItems,
   };
   return (
     <Surface

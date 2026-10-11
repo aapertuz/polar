@@ -11,6 +11,11 @@ export function MissionOverview({ mission }: { mission: Mission }) {
           !
         </span>
         <div className="insight-copy">
+          {mission.progressStatus && (
+            <span className="mission-progress-state">
+              {mission.progressStatus.replace(/_/g, " ")}
+            </span>
+          )}
           <strong>{mission.recommendation}</strong>
           <p>{mission.assessment}</p>
         </div>

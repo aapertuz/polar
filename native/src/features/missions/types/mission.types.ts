@@ -19,6 +19,14 @@ export interface MissionAction {
   dependencies?: string[];
   assigneeIds?: string[];
   contextSourceIds?: string[];
+  completionCriteria?: string;
+  evidenceStatus?:
+    | "awaiting_evidence"
+    | "awaiting_evaluation"
+    | "insufficient"
+    | "accepted"
+    | "review";
+  evidenceReason?: string | null;
 }
 
 export interface Mission {
@@ -34,6 +42,8 @@ export interface Mission {
   risks?: string[];
   assumptions?: string[];
   assessment: string;
+  progressStatus?: string;
+  progressRevision?: number;
   recommendation: string;
   proposedChange: string;
   constraint: string;

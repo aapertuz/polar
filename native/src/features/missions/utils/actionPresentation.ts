@@ -8,7 +8,17 @@ export interface ActionPresentationInput {
   dueOn?: string | null;
   assigneeIds?: string[];
   contextSourceIds?: string[];
+  completionCriteria?: string;
+  evidenceStatus?: ActionEvidenceStatus;
+  evidenceReason?: string | null;
 }
+
+export type ActionEvidenceStatus =
+  | "awaiting_evidence"
+  | "awaiting_evaluation"
+  | "insufficient"
+  | "accepted"
+  | "review";
 
 export interface PresentedMissionAction {
   id?: string;
@@ -20,6 +30,9 @@ export interface PresentedMissionAction {
   dueOn: string | null;
   assigneeIds: string[];
   contextSourceIds: string[];
+  completionCriteria: string;
+  evidenceStatus: ActionEvidenceStatus;
+  evidenceReason: string | null;
 }
 
 export function presentActions(
@@ -34,8 +47,15 @@ export function presentActions(
     status: action.status === "completed" ? "completed" : "upcoming",
     dependencies: action.dependencies ?? [],
     dueOn: action.dueOn ?? null,
-    assigneeIds: action.assigneeIds ?? (currentUserId ? [currentUserId] : []),
+    assigneeIds:
+      action.assigneeIds?.length || action.status !== "completed" || !currentUserId
+        ? (action.assigneeIds ?? [])
+        : [currentUserId],
     contextSourceIds: action.contextSourceIds ?? [],
+    completionCriteria: action.completionCriteria ?? action.detail,
+    evidenceStatus:
+      action.evidenceStatus ?? (action.status === "completed" ? "accepted" : "awaiting_evidence"),
+    evidenceReason: action.evidenceReason ?? null,
   }));
 }
 

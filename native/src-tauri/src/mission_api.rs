@@ -32,8 +32,6 @@ struct MissionActionUpdate {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     priority: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    status: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     assignee_ids: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     context_source_ids: Option<Vec<String>>,
@@ -53,7 +51,6 @@ fn validate_action_update(value: Value) -> Result<Value, String> {
     })?;
     if update.due_on.is_none()
         && update.priority.is_none()
-        && update.status.is_none()
         && update.assignee_ids.is_none()
         && update.context_source_ids.is_none()
     {
@@ -70,13 +67,6 @@ fn validate_action_update(value: Value) -> Result<Value, String> {
         .is_some_and(|value| !matches!(value, "High" | "Medium" | "Low"))
     {
         return Err("Choose High, Medium, or Low priority.".into());
-    }
-    if update
-        .status
-        .as_deref()
-        .is_some_and(|value| !matches!(value, "upcoming" | "completed"))
-    {
-        return Err("Choose an available action completion state.".into());
     }
     if update
         .assignee_ids
@@ -302,6 +292,22 @@ pub async fn polar_missions(
 }
 
 #[tauri::command]
+pub async fn polar_attention(
+    state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
+) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
+    request(
+        &state,
+        &workspace_id,
+        reqwest::Method::GET,
+        "api/app/attention",
+        None,
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn polar_mission_action_update(
     state: State<'_, ApplicationAuthState>,
     workspace_id: String,
@@ -319,6 +325,97 @@ pub async fn polar_mission_action_update(
         reqwest::Method::PATCH,
         &format!("api/app/missions/{mission_id}/actions/{action_id}"),
         Some(updates),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn polar_action_activity(
+    state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
+    mission_id: String,
+    action_id: String,
+) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
+    validate_id(&mission_id)?;
+    validate_id(&action_id)?;
+    request(
+        &state,
+        &workspace_id,
+        reqwest::Method::GET,
+        &format!("api/app/missions/{mission_id}/actions/{action_id}/activity"),
+        None,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn polar_action_message(
+    state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
+    mission_id: String,
+    action_id: String,
+    content: String,
+    idempotency_key: String,
+    conclusion: bool,
+) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
+    validate_id(&mission_id)?;
+    validate_id(&action_id)?;
+    validate_id(&idempotency_key)?;
+    let content = content.trim();
+    if content.is_empty() || content.chars().count() > 8000 {
+        return Err("Enter an action message up to 8,000 characters.".into());
+    }
+    request(
+        &state,
+        &workspace_id,
+        reqwest::Method::POST,
+        &format!("api/app/missions/{mission_id}/actions/{action_id}/messages"),
+        Some(serde_json::json!({ "content": content, "idempotencyKey": idempotency_key, "conclusion": conclusion })),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn polar_action_evidence(
+    state: State<'_, ApplicationAuthState>,
+    workspace_id: String,
+    mission_id: String,
+    action_id: String,
+    kind: String,
+    content: String,
+    reference_url: Option<String>,
+    idempotency_key: String,
+) -> Result<Value, String> {
+    validate_id(&workspace_id)?;
+    validate_id(&mission_id)?;
+    validate_id(&action_id)?;
+    validate_id(&idempotency_key)?;
+    if !matches!(kind.as_str(), "text" | "reference" | "document")
+        || content.trim().is_empty()
+        || content.chars().count() > 1_000_000
+    {
+        return Err("Submit text, a reference link, or extracted document text.".into());
+    }
+    let reference_url = reference_url.map(|value| value.trim().to_string());
+    if kind == "reference" {
+        let Some(url) = reference_url.as_ref() else {
+            return Err("Enter a valid reference URL.".into());
+        };
+        let parsed = reqwest::Url::parse(url).map_err(|_| "Enter a valid reference URL.")?;
+        if !matches!(parsed.scheme(), "https" | "http") {
+            return Err("Reference URLs must use HTTP or HTTPS.".into());
+        }
+    } else if reference_url.is_some() {
+        return Err("Reference URLs can only be submitted as links.".into());
+    }
+    request(
+        &state,
+        &workspace_id,
+        reqwest::Method::POST,
+        &format!("api/app/missions/{mission_id}/actions/{action_id}/evidence"),
+        Some(serde_json::json!({ "kind": kind, "content": content, "referenceUrl": reference_url, "idempotencyKey": idempotency_key })),
     )
     .await
 }
@@ -405,10 +502,10 @@ mod action_update_tests {
     }
 
     #[test]
-    fn rejects_invalid_dates_statuses_ids_and_unknown_fields() {
+    fn rejects_invalid_dates_completion_statuses_ids_and_unknown_fields() {
         for value in [
             json!({"dueOn": "2026-02-30"}),
-            json!({"status": "blocked"}),
+            json!({"status": "completed"}),
             json!({"assigneeIds": ["invalid"]}),
             json!({"title": "unscoped"}),
             json!({}),

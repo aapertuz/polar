@@ -7,6 +7,7 @@ import type { Mission } from "@/features/missions/types/mission.types";
 interface Props {
   request: OverlayRequest;
   mission: Mission;
+  workspaceId?: string;
   updateAction?: (
     missionId: string,
     actionId: string,
@@ -14,8 +15,8 @@ interface Props {
   ) => Promise<void>;
 }
 
-export function ActionDetail({ request, mission, updateAction }: Props) {
-  const detail = useActionDetail(request, mission, updateAction);
+export function ActionDetail({ request, mission, updateAction, workspaceId }: Props) {
+  const detail = useActionDetail(request, mission, updateAction, workspaceId);
   const {
     title,
     detail: description,
@@ -23,6 +24,15 @@ export function ActionDetail({ request, mission, updateAction }: Props) {
     priority,
     priorities,
     completed,
+    canParticipate,
+    activity,
+    activityError,
+    messageText,
+    referenceUrl,
+    conclusion,
+    completionCriteria,
+    evidenceStatus,
+    evidenceReason,
     assigneeIds,
     timing,
     assignedPeople,
@@ -39,7 +49,12 @@ export function ActionDetail({ request, mission, updateAction }: Props) {
     handleAssigneeChange,
     handleContextChange,
     handleContextRemove,
-    handleToggleCompletion,
+    handleMessageChange,
+    handleReferenceChange,
+    handleConclusionChange,
+    handleSubmitMessage,
+    handleSubmitReference,
+    handleImportEvidence,
   } = detail;
 
   return (
@@ -135,6 +150,114 @@ export function ActionDetail({ request, mission, updateAction }: Props) {
         <p>{description || "No description added."}</p>
       </section>
 
+      <section className="action-description" aria-label="Completion criteria">
+        <h3>Completion criteria</h3>
+        <p>{completionCriteria}</p>
+      </section>
+
+      <section className="action-activity" aria-label="Action conversation">
+        <div className="action-resource-heading">
+          <h3>Conversation and evidence</h3>
+          <span className={`action-evidence-status status-${evidenceStatus}`}>
+            {evidenceStatus.replace(/_/g, " ")}
+          </span>
+        </div>
+        {evidenceReason && <p className="action-evidence-reason">{evidenceReason}</p>}
+        {!canParticipate && (
+          <p className="action-membership-notice">
+            Only current members assigned to this action can add messages or evidence.
+          </p>
+        )}
+        <ol className="action-message-list">
+          {activity.messages.map((message) => (
+            <li key={message.id} className={message.role === "assistant" ? "is-polar" : ""}>
+              <span>
+                {message.role === "assistant" ? "Polar" : "Action member"}
+                {message.conclusion ? " · conclusion" : ""}
+              </span>
+              <p>{message.content}</p>
+            </li>
+          ))}
+          {activity.evidence.map((item) => (
+            <li key={item.id} className="is-evidence">
+              <span>
+                Evidence · {item.kind} · {item.evaluation}
+              </span>
+              <p>
+                {item.referenceUrl ? (
+                  <a href={item.referenceUrl} target="_blank" rel="noreferrer">
+                    {item.referenceUrl}
+                  </a>
+                ) : (
+                  item.content
+                )}
+              </p>
+              {item.evaluationReason && <small>{item.evaluationReason}</small>}
+            </li>
+          ))}
+        </ol>
+        <form className="action-entry-form" onSubmit={handleSubmitMessage}>
+          <label htmlFor="action-message">Message or written result</label>
+          <textarea
+            id="action-message"
+            value={messageText}
+            onChange={handleMessageChange}
+            maxLength={8000}
+            disabled={!canParticipate}
+          />
+          <label className="action-conclusion-check">
+            <input
+              type="checkbox"
+              checked={conclusion}
+              onChange={handleConclusionChange}
+              disabled={!canParticipate}
+            />{" "}
+            This is a clear conclusion about the action
+          </label>
+          <button
+            className="action-submit"
+            type="submit"
+            disabled={!canParticipate || !messageText.trim()}
+          >
+            Send message
+          </button>
+        </form>
+        <form className="action-entry-form" onSubmit={handleSubmitReference}>
+          <label htmlFor="action-reference">Reference link</label>
+          <input
+            id="action-reference"
+            type="url"
+            value={referenceUrl}
+            onChange={handleReferenceChange}
+            disabled={!canParticipate}
+            required
+            placeholder="https://"
+          />
+          <div className="action-evidence-actions">
+            <button
+              className="action-submit"
+              type="submit"
+              disabled={!canParticipate || !referenceUrl.trim()}
+            >
+              Submit link
+            </button>
+            <button
+              className="action-submit secondary"
+              type="button"
+              disabled={!canParticipate}
+              onClick={handleImportEvidence}
+            >
+              Attach document
+            </button>
+          </div>
+        </form>
+        {activityError && (
+          <p className="action-save-error" role="alert">
+            {activityError}
+          </p>
+        )}
+      </section>
+
       <section className="action-resources" aria-label="Action context">
         <div className="action-resource-heading">
           <h3>
@@ -216,17 +339,11 @@ export function ActionDetail({ request, mission, updateAction }: Props) {
       )}
 
       <footer className="action-detail-footer">
-        <button
-          className={`action-complete ${completed ? "is-complete" : ""}`}
-          disabled={saving || !canSave}
-          aria-pressed={completed}
-          onClick={handleToggleCompletion}
-        >
-          <span className="action-complete-circle" aria-hidden="true">
-            {completed && <Icon name="check" size={15} />}
-          </span>
-          {completed ? "Mark as active" : "Mark complete"}
-        </button>
+        <p>
+          {completed
+            ? "Evidence accepted · action complete"
+            : "Actions complete only after evidence is accepted."}
+        </p>
       </footer>
     </div>
   );

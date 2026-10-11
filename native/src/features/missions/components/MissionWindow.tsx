@@ -14,11 +14,12 @@ import type { Mission, MissionTab } from "@/features/missions/types/mission.type
 const tabs = MISSION_TABS;
 function MissionPlanTab({
   mission,
+  open,
 }: {
   mission: Mission;
   open: (request: OverlayRequest) => void;
 }) {
-  return <MissionPlan mission={mission} />;
+  return <MissionPlan mission={mission} open={open} />;
 }
 const tabComponents: Record<
   MissionTab,

@@ -119,6 +119,7 @@ export function HomeScreen({ account }: { account: ReturnType<typeof usePolarAcc
               updateAction={model.updateAction}
               account={account}
               workspaceSettings={model.workspaceSettings}
+              attentionItems={model.attentionItems}
             />
           ) : (
             <EmptyHomeOverlays

@@ -183,8 +183,6 @@ export function useQuickAi({ closeOverlays, initialIntent, workspaceId, accountI
   chatRef.current = chat;
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
-  const workerBusy = useRef(false);
-  const workerAttempted = useRef(new Set<string>());
 
   const focusInput = useCallback(() => inputRef.current?.focus({ preventScroll: true }), []);
   const openQuickAi = useCallback(
@@ -514,7 +512,6 @@ export function useQuickAi({ closeOverlays, initialIntent, workspaceId, accountI
         await invoke("polar_ai_cancel").catch(() => {});
       }
       await invoke("polar_mission_reasoning_retry", { workspaceId, requestId: request.id });
-      workerAttempted.current.delete(request.id);
       setScopedChat(originScope, (current) => ({
         ...current,
         request: { ...request, status: "queued" },
@@ -559,44 +556,13 @@ export function useQuickAi({ closeOverlays, initialIntent, workspaceId, accountI
   useEffect(() => {
     if (!visible || !workspaceId || !session.opened || !chat.id) return;
     const originScope = scopeKey;
-    const originWorkspaceId = workspaceId;
     if (!originScope) return;
     const poll = window.setInterval(() => {
       if (activeScope.current !== originScope || stateScope.current !== originScope) return;
       if (chatRef.current.id) void refreshDraft(chatRef.current.id, originScope).catch(() => {});
-      const request = chatRef.current.request;
-      const claimAvailable =
-        request?.status === "queued" ||
-        (request?.status === "claimed" &&
-          Boolean(request.leaseExpiresAt && Date.parse(request.leaseExpiresAt) <= Date.now()));
-      if (
-        request &&
-        claimAvailable &&
-        !workerAttempted.current.has(request.id) &&
-        !workerBusy.current &&
-        isTauri()
-      ) {
-        workerBusy.current = true;
-        workerAttempted.current.add(request.id);
-        void invoke<string>("polar_ai_work_once", { workspaceId: originWorkspaceId })
-          .then((result) => {
-            if (result === "completed" && chatRef.current.id)
-              return refreshDraft(chatRef.current.id, originScope);
-            return undefined;
-          })
-          .catch((error: unknown) => {
-            setScopedChat(originScope, (current) => ({
-              ...current,
-              failure: errorMessage(error, "The local ChatGPT worker is unavailable."),
-            }));
-          })
-          .finally(() => {
-            workerBusy.current = false;
-          });
-      }
     }, 2200);
     return () => window.clearInterval(poll);
-  }, [chat.id, refreshDraft, scopeKey, session.opened, setScopedChat, visible, workspaceId]);
+  }, [chat.id, refreshDraft, scopeKey, session.opened, visible, workspaceId]);
 
   const setInput = useCallback(
     (text: string) => {

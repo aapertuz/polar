@@ -1,8 +1,17 @@
 import { Icon } from "@/components/ui/Icon";
 import { PlanDetail } from "@/features/missions/components/PlanDetail";
 import type { Mission } from "@/features/missions/types/mission.types";
+import type { OverlayRequest } from "@/components/ui/overlay.types";
+import { useMissionPlan } from "@/features/missions/hooks/useMissionPlan";
 
-export function MissionPlan({ mission }: { mission: Mission }) {
+export function MissionPlan({
+  mission,
+  open,
+}: {
+  mission: Mission;
+  open: (request: OverlayRequest) => void;
+}) {
+  const { handleOpenAction } = useMissionPlan(mission, open);
   return (
     <div className="plan-view">
       <div className="section-intro">
@@ -53,6 +62,12 @@ export function MissionPlan({ mission }: { mission: Mission }) {
                           </time>
                         )}
                         <PlanDetail detail={action.detail} />
+                        <button
+                          className="plan-action-open"
+                          onClick={handleOpenAction(action.title)}
+                        >
+                          Open action conversation
+                        </button>
                         {action.dependsOn?.length ? (
                           <div className="action-dependencies">
                             <span>Depends on</span>

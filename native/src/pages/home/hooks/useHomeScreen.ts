@@ -12,6 +12,8 @@ import { useQuickAi } from "@/features/quick-ai/hooks/useQuickAi";
 import { presentMission, presentProposal } from "@/features/missions/utils/missionPresentation";
 import type { usePolarAccount } from "@/features/application-auth/hooks/usePolarAccount";
 import { useWorkspaceSettings } from "@/features/workspaces/hooks/useWorkspaceSettings";
+import { useBackgroundMissionWorker } from "@/pages/home/hooks/useBackgroundMissionWorker";
+import type { AttentionItem } from "@/pages/home/hooks/useBackgroundMissionWorker";
 import { clearQuickAiSnapshots } from "@/features/quick-ai/hooks/useQuickAi";
 import { clearWorkspaceContextDrafts } from "@/features/workspace-context/hooks/useWorkspaceContext";
 
@@ -26,6 +28,7 @@ export function useHomeScreen(account: AccountModel) {
   const [missions, setMissions] = useState<Mission[]>([]);
   const [missionsWorkspaceId, setMissionsWorkspaceId] = useState<string | null>(null);
   const [missionLoadFailed, setMissionLoadFailed] = useState(false);
+  const [attentionItems, setAttentionItems] = useState<AttentionItem[]>([]);
   const [pendingSelection, setPendingSelection] = useState<string | null>(null);
   const workspaceId = account.status.selectedWorkspaceId;
   const accountId = account.status.userId;
@@ -82,25 +85,35 @@ export function useHomeScreen(account: AccountModel) {
       setMissions([]);
       setMissionsWorkspaceId(originScope);
       setMissionLoadFailed(false);
-      return;
+      return [];
     }
-    if (!isTauri()) return;
+    if (!isTauri()) return [];
     try {
       const rows = await invoke<Parameters<typeof presentMission>[0][]>("polar_missions", {
         workspaceId: originWorkspaceId,
       });
-      if (activeWorkspace.current !== originScope) return;
-      setMissions(rows.map(presentMission));
+      if (activeWorkspace.current !== originScope) return [];
+      const presented = rows.map(presentMission);
+      setMissions(presented);
       setMissionsWorkspaceId(originScope);
       setMissionLoadFailed(false);
+      return presented;
     } catch {
       if (activeWorkspace.current === originScope) {
         setMissions([]);
         setMissionsWorkspaceId(originScope);
         setMissionLoadFailed(true);
       }
+      return [];
     }
   }, [scopeKey, workspaceId]);
+  useBackgroundMissionWorker({
+    accountId,
+    authenticated: account.status.authenticated,
+    workspaceId,
+    refreshMissions,
+    onAttention: setAttentionItems,
+  });
   const updateAction = useCallback(
     async (missionId: string, actionId: string, updates: MissionActionUpdate) => {
       const originWorkspaceId = workspaceId;
@@ -123,6 +136,7 @@ export function useHomeScreen(account: AccountModel) {
     setMissions([]);
     setMissionsWorkspaceId(null);
     setMissionLoadFailed(false);
+    setAttentionItems([]);
     setPendingSelection(null);
     overlay.close();
     windows.reset();
@@ -205,6 +219,7 @@ export function useHomeScreen(account: AccountModel) {
   return {
     missions: visibleMissions,
     missionLoadFailed: missionsWorkspaceId === workspaceId && missionLoadFailed,
+    attentionItems,
     ...selection,
     mission: focusHomeMission,
     reviewingProposal: Boolean(reviewMission),

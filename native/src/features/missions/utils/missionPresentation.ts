@@ -21,6 +21,8 @@ interface PersistedMission {
   outcome: string;
   deadlineAt: string | null;
   assessment: string;
+  progressStatus?: string;
+  progressRevision?: number;
   recommendation: string;
   checkpoints: MissionPlan["checkpoints"];
   constraints: string[];
@@ -63,6 +65,8 @@ export function presentMission(value: PersistedMission): Mission {
     outcome: value.outcome,
     deadlineAt: value.deadlineAt ?? undefined,
     assessment: value.assessment,
+    progressStatus: value.progressStatus,
+    progressRevision: value.progressRevision,
     recommendation: value.recommendation,
     proposedChange: "",
     constraint: value.constraints.join(" · ") || "No constraints provided",

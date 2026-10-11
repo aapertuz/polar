@@ -244,6 +244,137 @@ struct ReasoningJob {
     lease_token: String,
 }
 
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ActionActivity {
+    mission_revision: i32,
+}
+
+#[derive(serde::Deserialize)]
+struct ActionEvaluation {
+    outcome: String,
+    reason: String,
+    question: Option<String>,
+    mission_outcome: Option<String>,
+    mission_outcome_reason: Option<String>,
+}
+
+#[tauri::command]
+pub async fn polar_action_evaluate(
+    provider: State<'_, ProviderState>,
+    auth: State<'_, ApplicationAuthState>,
+    workspace_id: String,
+    mission_id: String,
+    action_id: String,
+) -> std::result::Result<String, String> {
+    for id in [&workspace_id, &mission_id, &action_id] {
+        if uuid::Uuid::parse_str(id).is_err() {
+            return Err("This action request is invalid.".into());
+        }
+    }
+    let account = internal_session(&auth)
+        .await
+        .map_err(|error| error.message)?;
+    let (guard, cancel) = provider
+        .begin()
+        .map_err(|error| error.message.to_string())?;
+    let (_guard, mut vault) = store::load(guard, &cancel)
+        .await
+        .map_err(|error| error.message.to_string())?;
+    let model = vault
+        .active()
+        .map_err(|error| error.message.to_string())?
+        .model
+        .clone()
+        .ok_or_else(|| {
+            "Choose an available ChatGPT model in Settings before evaluating evidence.".to_string()
+        })?;
+    let access_token = openai::access(&provider.client, &mut vault)
+        .await
+        .map_err(|error| error.message.to_string())?;
+    let activity_url = auth
+        .api_url
+        .join(&format!(
+            "api/app/missions/{mission_id}/actions/{action_id}/activity"
+        ))
+        .map_err(|_| "Polar server URL is invalid.".to_string())?;
+    let activity_response = tokio::select! {
+        biased;
+        _ = cancel.cancelled() => return Err(ProviderError::cancelled().message.into()),
+        response = provider.client.get(activity_url).bearer_auth(&account.access_token)
+            .header("x-polar-workspace-id", &workspace_id).send() => response.map_err(|_| ProviderError::network().message.to_string())?,
+    };
+    if !activity_response.status().is_success() {
+        return Err("Polar could not refresh this action's activity. Retry when connected.".into());
+    }
+    let activity: serde_json::Value = activity_response
+        .json()
+        .await
+        .map_err(|_| "Polar returned invalid action activity.".to_string())?;
+    let authorization: ActionActivity = serde_json::from_value(activity.clone())
+        .map_err(|_| "Polar returned invalid action activity.".to_string())?;
+    let inference = tokio::select! {
+        biased;
+        _ = cancel.cancelled() => Err(ProviderError::cancelled()),
+        result = openai::action_reasoning(&provider.client, &access_token, &model, &activity) => result,
+    }.map_err(|error| error.message.to_string())?;
+    let evaluation: ActionEvaluation = serde_json::from_value(inference).map_err(|_| {
+        "ChatGPT returned an invalid action evaluation. Retry to evaluate it again.".to_string()
+    })?;
+    if !matches!(
+        evaluation.outcome.as_str(),
+        "accepted" | "insufficient" | "conflicting"
+    ) || evaluation.reason.trim().is_empty()
+        || evaluation.reason.chars().count() > 2000
+        || evaluation
+            .question
+            .as_ref()
+            .is_some_and(|question| question.trim().is_empty() || question.chars().count() > 1000)
+        || evaluation.mission_outcome.as_ref().is_some_and(|outcome| {
+            !matches!(outcome.as_str(), "achieved" | "not_achieved" | "uncertain")
+        })
+        || evaluation
+            .mission_outcome_reason
+            .as_ref()
+            .is_some_and(|reason| reason.trim().is_empty() || reason.chars().count() > 2000)
+    {
+        return Err(
+            "ChatGPT returned an invalid action evaluation. Retry to evaluate it again.".into(),
+        );
+    }
+    let result_url = auth
+        .api_url
+        .join(&format!(
+            "api/app/missions/{mission_id}/actions/{action_id}/evaluation"
+        ))
+        .map_err(|_| "Polar server URL is invalid.".to_string())?;
+    let response = provider
+        .client
+        .post(result_url)
+        .bearer_auth(&account.access_token)
+        .header("x-polar-workspace-id", &workspace_id)
+        .header("x-polar-device-id", &account.device_id)
+        .json(&serde_json::json!({
+            "expectedRevision": authorization.mission_revision,
+            "outcome": evaluation.outcome,
+            "reason": evaluation.reason,
+            "question": evaluation.question,
+            "missionOutcome": evaluation.mission_outcome,
+            "missionOutcomeReason": evaluation.mission_outcome_reason,
+        }))
+        .send()
+        .await
+        .map_err(|_| {
+            "Polar could not save the action evaluation. Retry after reconnecting.".to_string()
+        })?;
+    if !response.status().is_success() {
+        return Err(
+            "Action context changed before evaluation was saved. Refresh and retry.".into(),
+        );
+    }
+    Ok("completed".into())
+}
+
 #[tauri::command]
 pub async fn polar_ai_work_once(
     provider: State<'_, ProviderState>,
