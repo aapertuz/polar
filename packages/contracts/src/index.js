@@ -92,6 +92,7 @@ export const MissionPlanSchema = z
                   .object({
                     title: z.string().trim().min(1).max(180),
                     detail: z.string().trim().min(1).max(1000),
+                    category: z.string().trim().min(1).max(40).default("Uncategorized"),
                     priority: z.enum(["High", "Medium", "Low"]),
                     dueOn: z.iso.date().nullable().optional(),
                     dependsOn: z.array(z.string().trim().min(1).max(180)).max(40),

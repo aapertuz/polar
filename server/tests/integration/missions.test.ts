@@ -235,6 +235,7 @@ test("development mission flow persists context, clarification, proposal, activa
                 title: "Verify rollback",
                 dueOn: "2026-10-10",
                 detail: "Confirm the rollback path works.",
+                category: "Ops",
                 priority: "High",
                 dependsOn: [],
               },
@@ -242,6 +243,7 @@ test("development mission flow persists context, clarification, proposal, activa
                 title: "Enable pilot cohort",
                 dueOn: "2026-10-11",
                 detail: "Release to the first customers.",
+                category: "Dev",
                 priority: "High",
                 dependsOn: ["Verify rollback"],
               },
@@ -536,6 +538,9 @@ test("development mission flow persists context, clarification, proposal, activa
     const mission = missions.json()[0];
     assert.equal(mission.id, activated.json().missionId);
     assert.equal(mission.nextAction.title, "Verify rollback");
+    assert.equal(mission.nextAction.category, "Ops");
+    assert.equal(mission.actions[0].category, "Ops");
+    assert.equal(mission.actions[1].category, "Dev");
     assert.equal(mission.actions[0].dueOn, "2026-10-10");
     assert.equal(mission.actions[1].dueOn, "2026-10-11");
     assert.equal(mission.checkpoints[0].dueOn, "2026-10-12");
@@ -749,6 +754,10 @@ test("development mission flow persists context, clarification, proposal, activa
     const regenerationJob = regenerateClaim.json().job;
     assert.equal(regenerationJob.id, regenerateMessage.json().requestId);
     assert.equal(regenerationJob.payload.mission.currentPlan.outcome, output.proposal.outcome);
+    assert.equal(
+      regenerationJob.payload.mission.currentPlan.checkpoints[0].actions[0].category,
+      "Ops",
+    );
     assert.equal(regenerationJob.payload.mission.sources[0].title, "launch-brief.md");
     assert.equal(regenerationJob.payload.contextManifest.currentMission.id, mission.id);
     const regenerationOutput = {
@@ -759,6 +768,7 @@ test("development mission flow persists context, clarification, proposal, activa
         checkpoints: output.proposal.checkpoints.map((checkpoint) => ({
           ...checkpoint,
           dueOn: "2026-10-14",
+          actions: checkpoint.actions.map((action) => ({ ...action, category: "Research" })),
         })),
       },
     };
@@ -777,6 +787,7 @@ test("development mission flow persists context, clarification, proposal, activa
     assert.equal(regenerationResult.statusCode, 200, regenerationResult.body);
     const beforeApply = await app.inject({ method: "GET", url: "/api/app/missions", headers });
     assert.equal(beforeApply.json()[0].recommendation, output.proposal.recommendation);
+    assert.equal(beforeApply.json()[0].actions[0].category, "Ops");
     const replacementProposal = regenerationResult.json();
     const applyReplacement = await app.inject({
       method: "POST",
@@ -807,6 +818,10 @@ test("development mission flow persists context, clarification, proposal, activa
     assert.equal(afterApply.json()[0].checkpoints[0].dueOn, "2026-10-14");
     assert.equal(afterApply.json()[0].actions[0].id, actionId);
     assert.equal(afterApply.json()[0].actions[0].status, "completed");
+    assert.equal(afterApply.json()[0].actions[0].category, "Research");
+    assert.equal(afterApply.json()[0].actions[1].category, "Research");
+    const reloaded = await app.inject({ method: "GET", url: "/api/app/missions", headers });
+    assert.equal(reloaded.json()[0].actions[0].category, "Research");
     const activityAfterRegeneration = await app.inject({
       method: "GET",
       url: activityUrl,

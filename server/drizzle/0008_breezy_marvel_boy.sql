@@ -1,0 +1,1 @@
+ALTER TABLE "mission_action" ADD COLUMN "category" text DEFAULT 'Uncategorized' NOT NULL;

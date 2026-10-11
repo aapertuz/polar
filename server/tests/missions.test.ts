@@ -100,6 +100,24 @@ test("action updates validate editable fields and reject empty or duplicated ass
   assert.equal(MissionActionUpdateSchema.safeParse({ title: "Unscoped edit" }).success, false);
 });
 
+test("action categories accept concise function labels and preserve legacy plans", () => {
+  const withCategory = (category: unknown) => ({
+    ...plan,
+    checkpoints: [
+      { ...plan.checkpoints[0], actions: [{ ...plan.checkpoints[0]!.actions[0], category }] },
+    ],
+  });
+  for (const category of ["Dev", "Ops", "HR", "Customer Success"]) {
+    const parsed = MissionPlanSchema.parse(withCategory(` ${category} `));
+    assert.equal(parsed.checkpoints[0]?.actions[0]?.category, category);
+  }
+  for (const category of [null, "", "   ", "x".repeat(41), 123]) {
+    assert.equal(MissionPlanSchema.safeParse(withCategory(category)).success, false);
+  }
+  const legacy = MissionPlanSchema.parse(plan);
+  assert.equal(legacy.checkpoints[0]?.actions[0]?.category, "Uncategorized");
+});
+
 test("action activity contracts require idempotency and constrain references", () => {
   const idempotencyKey = "33333333-3333-4333-8333-333333333333";
   assert.equal(

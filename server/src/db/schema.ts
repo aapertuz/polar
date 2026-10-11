@@ -330,6 +330,7 @@ export const missionAction = pgTable(
     title: text("title").notNull(),
     detail: text("detail").notNull(),
     completionCriteria: text("completion_criteria").notNull().default(""),
+    category: text("category").notNull().default("Uncategorized"),
     priority: text("priority").notNull(),
     dependencies: jsonb("dependencies").notNull().default([]),
     position: integer("position").notNull(),

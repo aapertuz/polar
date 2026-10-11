@@ -83,6 +83,7 @@ export type MissionPlan = {
     actions: {
       title: string;
       detail: string;
+      category?: string;
       priority: "High" | "Medium" | "Low";
       dueOn?: string | null;
       dependsOn: string[];
