@@ -209,7 +209,194 @@ plan changes -> deterministic policy checks -> updated attention.**
 
 ## Decisions and discoveries
 
+### Action categories follow-up (2026-10-11)
+
+Explicit request: AI planning assigns a category to each action (Dev, Ops, HR,
+etc.), visible in Timeline and Action Detail. Resume this plan because the change
+extends its mission planning, persisted action records, and action surfaces.
+
+Acceptance criteria for this follow-up:
+
+- [x] Initial planning and regeneration request a category for every action;
+      scheduling preserves it.
+- [x] Categories persist on activation and reviewed regeneration and are returned
+      with saved actions, including after reload.
+- [x] Timeline actions and Action Detail show the category with existing metadata
+      styles and remain usable at compact window sizes.
+- [x] Legacy plans/actions remain readable without invented classifications.
+- [x] Shared-contract, provider, presentation, and persistence checks pass;
+      desktop observations and any remaining gaps are recorded accurately.
+
+Implementation defaults: one short plain-text function label per action (up to
+40 characters), with consistent examples Dev, Ops, HR, Design, Marketing, Sales,
+Finance, Legal, Support, and Research. The examples are not an exhaustive enum.
+Legacy actions have no visible category until reviewed AI regeneration classifies
+them; no unsolicited reclassification or manual category editing is added.
+
+Progress: implemented category propagation through shared contracts, the strict
+provider response schema and planning instructions, scheduling preservation,
+activation/reconciliation, persisted action responses, presentation helpers,
+Timeline, and Action Detail (from Timeline and Plan). Generated and reviewed
+`server/drizzle/0008_breezy_marvel_boy.sql`: one non-null text column with an
+Uncategorized default. No dependencies, native IPC, or packaging changes.
+
+Verification: `pnpm verify` passed outside the sandbox (38 native,
+67 Rust, and 33 server tests). The initial sandbox run blocked two Rust socket
+tests; a new schema assertion incorrectly expected minLength/maxLength instead
+of the provider's established pattern bounds and was corrected. The isolated
+branch migration preserved existing action counts and initialized all legacy
+categories. Category activation/regeneration integration coverage passed below.
+Native PID 24340 was selected by its exact managed path and the desktop-review
+helper. The first observation preceded mission loading; after loading, the saved
+mission's 30 legacy actions showed Uncategorized in Timeline and Action Detail.
+Inspected screenshots in the compact initial window and the OS-zoomed larger
+window. Category labels and metadata remained reachable; no exact point-size
+claim is made. Compact review caught a crowded date control when category was
+a fourth control-sized property. Moved category into a separate muted metadata
+line and confirmed the corrected layout. Removed an aria-label that hid the
+category value from Timeline's accessible button name. No mission content,
+assignments, conversation, evidence, or saved plan was modified during UI review.
+
+The isolated branch integration run passed its one full mission-flow test,
+including category activation, next-action data, regeneration input, pre-approval
+preservation, reviewed category replacement, stable completed-action identity,
+and reload. The temporary wrapper scoped only its own process to the cloned
+development endpoint and ran checked-in Drizzle migrations; local environment
+files and endpoint identities were preserved. Branch `br-wispy-violet-b5c65rhz`
+expires on 2026-10-12 at 08:30 UTC. The normal development migration subsequently
+passed with approved network access. Production migration/deployment and real
+model classification quality were not exercised.
+
+Follow-up complete: final `pnpm format` and `pnpm verify` passed after the compact
+layout and accessibility corrections (9 frontend checker, 23 desktop tooling,
+2 environment, 38 native, 67 Rust, and 33 server tests, plus both builds).
+`git diff --check` passed. Native captures verified the category in the Timeline
+button name and Action Detail at both observed window sizes using the final UI.
+The category follow-up needs no further implementation. For rollout, deploy the
+server with migration 0008 before distributing the updated desktop provider;
+the production migration remains explicitly separate. Real model categorization
+quality remains a manual check, distinct from deterministic protocol coverage.
+The broader adaptive-missions plan stays Active with its earlier unfinished
+criteria; next implementation action remains the reasoning stages, deterministic
+approval policy, adaptive plan changes, and durable background recovery.
+
 ### Explicit requirements and user-selected behavior
+
+- 2026-10-11: Contextual commits requested. Inspected all source/test/docs diffs,
+  untracked files, the empty index, recent history, and enabled hooks. Exact
+  subject/path groups are recorded in `/private/tmp/polar-category-commit-groups.json`.
+  Planned order: `feat(missions): persist action categories` (contracts, server,
+  migration, and persistence tests); `feat(ai): categorize mission actions during
+  planning` (provider schema/instructions and scheduling tests);
+  `feat(native): show assigned action categories as pills` (presentation, views,
+  and frontend tests); `docs(missions): record category behavior and database
+  backfill` (spec and this progress record). The generated migration snapshot
+  differs from its predecessor only in IDs and the category column definition.
+  Final source already passed `pnpm verify`; subsequent changes are plan records.
+  Reuse those aggregate, desktop, and database checks; allow enabled pre-commit
+  `pnpm check` for each group. Next: stage and inspect each exact group, commit
+  without bypassing hooks, then confirm the sequence and remaining status.
+  Persistence commit `58c2b97` is complete; its enabled pre-commit `pnpm check`
+  passed. Remaining index was empty and only the planned native/docs groups
+  remained. AI planning commit `3d2be1d` is complete; its enabled pre-commit
+  `pnpm check` passed. Desktop presentation commit `e26511b` is complete; its
+  enabled pre-commit `pnpm check` passed. The remaining tree contains only this
+  progress record and the category behavior spec, prepared as the final docs
+  commit. No source changes occurred after the successful final `pnpm verify`;
+  no new live inference or desktop observation was repeated during committing.
+  The database backfill is an already-applied development data operation,
+  recorded here rather than encoded as a replayable schema migration. Final
+  handoff: confirm all four subjects and a clean tree; publishing was not part
+  of this commit request. The broader plan remains Active, with the reasoning
+  stages, approval policy, adaptive changes, and background recovery next.
+
+- 2026-10-11: User authorized reading current saved actions and assigning logical
+  categories directly in the database. Scope established from the current
+  development desktop and database: Deliver We Are One Pilot, mission
+  `f2fed02e-f9d3-4877-a73a-3a13fd7c2aa2` in Weft workspace, 30 active actions.
+  Target: project `snowy-term-67281307`, development branch
+  `br-round-tree-b5x6cps8`, database `polar_development`. Acceptance: all 30 actions
+  have purpose-appropriate categories; their saved plan entries agree; other
+  action fields and history are preserved; a read-back verifies the result.
+  Read every action's title/details and matched each action to its saved plan
+  checkpoint and index. Categories selected: OPS, DEV, HR, LEGAL, PRODUCT, QA,
+  FINANCE, SUPPORT, PARTNERSHIPS, ANALYTICS, CUSTOMER SUCCESS, MARKETING, and SALES.
+  Old categories and exact proposed assignments are backed up at
+  `/private/tmp/polar-action-category-backfill-2026-10-11.json`.
+  Complete: applied one atomic PostgreSQL DO statement, locking the scoped
+  mission and active actions, requiring revision 5 and exactly 30 actions, and
+  checking inspected IDs, titles, positions, checkpoints, previous categories,
+  and saved plan entries before updating. Updated all 30 category columns and
+  matching saved plan category entries; incremented mission revision to 6 so
+  previously generated proposals cannot apply against the former revision.
+  Read-back verified every assignment and plan entry. Compared complete action
+  rows excluding category, and complete saved plan JSON excluding the assigned
+  category additions, against their inspected baselines; all other fields were
+  preserved. Counts: OPS 13, LEGAL 3, DEV 2, ANALYTICS 2, SALES 2; PRODUCT, QA,
+  FINANCE, HR, SUPPORT, PARTNERSHIPS, CUSTOMER SUCCESS, and MARKETING 1 each.
+  Messages, evidence, memberships, and historical proposal snapshots were not
+  written. No production mutation, schema change, application code change, or
+  deployment. `pnpm check:docs` and `git diff --check` passed for the plan update;
+  database read-back establishes this operation's behavior. No work remains for
+  this backfill. Broader plan next action remains the reasoning stages, approval
+  policy, adaptive changes, and background recovery.
+
+- 2026-10-11: Hide uncategorized actions' category metadata. Acceptance: Timeline
+  omits the pill and Action Detail omits the entire Category row for the legacy
+  Uncategorized value, a missing value, or a blank value. Assigned categories
+  retain the uppercase pill treatment. Implementation shares a trimmed,
+  case-insensitive visibility helper between CategoryPill and Action Detail's
+  hook; persisted category values remain intact. The new visibility behavior is
+  a relevant source change since the previous review's exhausted capture budget;
+  use the supported launcher for this task, recording its status and helper
+  evidence.
+  Complete: `pnpm format`, `pnpm verify` (9 frontend checker, 23 desktop tooling,
+  2 environment, 38 native, 67 Rust, and 33 server tests plus builds), and
+  `git diff --check` passed. A direct Node assertion check confirmed missing,
+  blank, and case/whitespace variants of Uncategorized are omitted while Dev,
+  Ops, HR, and Customer Success remain visible. Native status was stopped before
+  launching the owned development session; exact managed PID 59550 was reviewed
+  with the desktop helper. Timeline and Action Detail visibly omitted category
+  metadata for the legacy mission in the initial compact and OS-zoomed larger
+  windows; no exact point-size claim is made. Final helper evidence:
+  captureState available, recoveryUsed false, needsObservation false,
+  bindingRefreshes 0, no failures or user retries. No action data was changed;
+  the owned development session was stopped and packaged PID 50838 preserved.
+  No further work remains for hiding Uncategorized. The earlier styling
+  follow-up's assigned dark pill remained visually unverified because the saved
+  mission then had no assigned categories. Broader plan next action remains the
+  reasoning stages, approval policy, adaptive changes, and background recovery.
+
+- 2026-10-11: Category styling follow-up: show category labels in capital letters
+  and as pills in Timeline cards and Action Detail. Acceptance: all assigned
+  category labels render in uppercase neutral pills on
+  light/dark surfaces, without crowding editable properties or overflowing at
+  compact sizes. Reuse one shared `CategoryPill` component with existing color,
+  spacing, typography, and pill-radius tokens; uppercase is a presentation rule
+  and does not require rewriting stored category values. Owner-maintained
+  Design reference is unchanged; proposed durable addition: category metadata
+  uses this noninteractive pill treatment. Implemented the component and both
+  callers. `pnpm format`, `git diff --check`, and `pnpm verify` passed (9 frontend
+  checker, 23 desktop tooling, 2 environment, 38 native, 67 Rust, and 33 server
+  tests, plus both builds). The first sandbox verification blocked two Rust
+  local-socket tests; the approved unrestricted rerun passed.
+  Native Timeline capture at the initial compact window showed uppercase
+  UNCATEGORIZED pills and wrapping metadata without overflow. No exact
+  point-size claim is made. Opening Action Detail failed during `click`, and the
+  single recovery after fresh ready status failed during `recoverCapture`.
+  Both causes were: "The user changed
+  '/Users/antoniopertuz/Documents/work/personal/polar/.polar-dev/Polar Dev.app'.
+  Re-query the latest state with `get_app_state` before sending more actions."
+  Target: that exact managed app, identity `com.antoniopertuz.polar.dev`, native
+  PID 54635. Final helper evidence: captureState blocked, recoveryUsed true,
+  needsObservation false, failedOperation recoverCapture, bindingRefreshes 0,
+  userRetryRequests empty. The uncertain click was not replayed and desktop
+  automation stopped. The development session launched for this review was
+  stopped; the separately running packaged app was preserved. This styling
+  follow-up remains pending native Action Detail and larger-window visual
+  acceptance. Next: complete those observations after an explicit user retry
+  instruction or a recorded relevant capture-state change; the source styling
+  and automated verification are complete.
 
 - 2026-10-11: Deployment experimentation follow-up: reduce the shared outbox
   recovery schedule from every minute to seven-minute cron increments. Acceptance:

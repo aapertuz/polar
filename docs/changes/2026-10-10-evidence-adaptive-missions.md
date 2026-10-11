@@ -49,6 +49,14 @@ recheck both conditions at submission time.
   work while the desktop is running and authenticated; provider failures never
   establish completion.
 - Mission surfaces show persisted assessments, activity, attention, and reasons.
+- AI planning assigns every action a concise work-function category (for example
+  Dev, Ops, or HR), visible in Timeline and Action Detail. Scheduling preserves
+  categories; activation and reviewed regeneration persist them. Older actions
+  have no visible category until reviewed regeneration classifies them. Categories
+  are plain text up to 40 characters, without a fixed exhaustive taxonomy.
+  Display category labels in uppercase pills in Timeline cards and Action Detail.
+  Omit Uncategorized, missing, and blank categories; omit the entire Category
+  row in Action Detail when there is no visible category.
 
 ## Open questions and decisions
 
