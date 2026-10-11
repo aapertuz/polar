@@ -507,3 +507,101 @@ no leaks under the existing narrow disposable-test-key exception. No hook was
 bypassed. The broader capture plan remains Active; next action is still the
 changed-binding recovery investigation, with the external -3811 trigger and
 cross-Space coverage unresolved.
+
+### Navbar mark as desktop app icon — 2026-10-11
+
+The owner requested using the navbar logo as the app icon. Acceptance for this
+packaging follow-up: preserve `PolarMark` geometry and colors, replace the
+configured desktop icon assets, include the icon in the managed development
+bundle, and verify the production macOS installer. Existing onboarding changes
+and development sessions must be preserved.
+
+Added the editable SVG source at
+[`app-icon.svg`](../../../native/src-tauri/app-icon.svg), with the existing
+white ring and red dot on a rounded dark background. Tauri's icon generator
+produced the desktop PNG, ICNS, and ICO assets; mobile outputs were kept outside
+the repository. The managed development bundle now copies `icon.icns` into
+Resources and declares `CFBundleIconFile`. The owner supplied the public
+production origin `https://polarserver-production.up.railway.app` for installer
+verification. Next action: verify the isolated development bundle metadata,
+run `pnpm verify`, and build/inspect an ad-hoc-signed production DMG.
+
+The isolated launcher check passed: a temporary copy of the real launcher built
+a development bundle whose `CFBundleIconFile` and copied ICNS bytes match the
+configured icon. No existing development app was modified or restarted.
+`pnpm verify` passed on the current application tree with approved local socket
+access. The production DMG build is running with the supplied HTTPS origin,
+production client ID, and `APPLE_SIGNING_IDENTITY=-`. Next action: inspect the
+finished bundle's icon, metadata, signature, and disk-image integrity.
+
+Icon follow-up is complete. The production command
+`POLAR_ENV=production POLAR_API_BASE_URL=https://polarserver-production.up.railway.app POLAR_DESKTOP_CLIENT_ID=com.antoniopertuz.polar.desktop APPLE_SIGNING_IDENTITY=- pnpm tauri build --bundles dmg --ci`
+passed and produced `native/src-tauri/target/release/bundle/dmg/polar_0.1.0_aarch64.dmg`.
+Read-only inspection of the DMG confirmed the production bundle identifier,
+embedded backend origin/client ID, and `CFBundleIconFile=icon.icns`; the bundled
+ICNS exactly matches the generated navbar-mark icon. Its extracted PNG was
+visually inspected. Configured PNG sizes/transparency and ICNS/ICO containers
+were also checked. `codesign --verify --deep --strict` and `hdiutil verify`
+passed; signature display confirms ad-hoc signing with no Apple team identity.
+The DMG is not notarized. Development Dock appearance takes effect on the next
+managed native launch; the existing session was preserved. No live production
+sign-in or new desktop capture was performed.
+
+The broader capture plan remains Active. Next action remains investigating the
+changed-binding rejection under bounded recovery; the external -3811 trigger
+and cross-Space coverage remain unresolved.
+
+### One-command production installer — 2026-10-11
+
+The owner requested the exact command `pnpm build bundle`. Acceptance: build the
+macOS production DMG with the supplied Railway origin, production client ID,
+current logo, and ad-hoc signing without manual environment setup; preserve
+ordinary `pnpm build`; keep server credentials out of the desktop build
+environment; and verify both full checks and the exact requested command.
+
+Use a root build dispatcher and checked-in public desktop production settings.
+The Tauri pre-build command runs the native package's existing frontend build,
+so it must not recurse into the root bundle dispatcher. Next action: implement
+the dispatcher/configuration, document usage, verify environment isolation, then
+run `pnpm verify` and `pnpm build bundle` sequentially.
+
+Implemented the root dispatcher and `native/production.json`, with the supplied
+public Railway origin/client ID. Desktop packaging does not load server env
+files; it removes inherited database/auth/Inngest and Apple certificate/notary
+credentials and sets production plus ad-hoc signing explicitly. Added public
+configuration and environment-isolation coverage to `test:environments`, and
+documented the exact command in README, Authentication, and Verification.
+
+`pnpm test:environments` passed all 4 tests. `pnpm build unexpected` rejected an
+unknown argument with usage and exit 1. `pnpm verify` passed with approved local
+socket access, including the existing plain build through the dispatcher. The
+exact `pnpm build bundle` command is now running. Next action: verify the DMG
+output and record the final result; existing icon work remains preserved.
+
+One-command installer acceptance is complete. `pnpm build bundle` passed with
+no manual environment assignments and produced
+`native/src-tauri/target/release/bundle/dmg/polar_0.1.0_aarch64.dmg`. Read-only
+inspection confirmed the configured production origin/client ID are embedded,
+the current logo's ICNS is packaged exactly, and the production bundle identity
+is correct. `codesign --verify --deep --strict` and `hdiutil verify` passed;
+signature display confirms ad-hoc signing with no Apple team identity. The
+installer remains unnotarized. No live production sign-in or desktop gesture
+was performed. The existing capture investigation remains Active; next action
+is still the changed-binding recovery investigation under its bounded procedure.
+
+### Icon and installer commit handoff — 2026-10-11
+
+The owner requested contextual commits. Desktop icon assets and the managed
+development bundle icon are committed as `40dba4d` (`feat(native): use navbar
+mark as desktop app icon`). The production dispatcher, public configuration,
+environment-isolation tests, and usage documentation are committed as
+`ba5c8a0` (`build(desktop): add one-command production installer`). This
+verification record is kept in a separate documentation commit.
+
+The full `pnpm verify`, exact `pnpm build bundle`, environment tests, and
+installer integrity/signature checks passed earlier against this implementation.
+Both implementation commits also passed the enabled `pnpm check` hook. No
+credentials or generated build output were staged. No new live sign-in or
+desktop capture was attempted. Next action is checking the final commit sequence
+and clean working tree; the broader capture investigation remains Active with
+the changed-binding recovery investigation as its next work.
