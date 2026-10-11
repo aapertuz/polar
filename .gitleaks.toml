@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+# This exact key signs synthetic tokens only in #[cfg(test)] OAuth tests.
+# Keep the private-key rule active for every other path and all other rules active here.
+[[rules]]
+id = "private-key"
+
+[[rules.allowlists]]
+description = "Disposable RSA fixture for OAuth signature validation tests"
+paths = ['''(^|/)native/src-tauri/src/providers/fixtures/test-rsa-private\.pem$''']

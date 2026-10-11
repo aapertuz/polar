@@ -274,6 +274,17 @@ plan changes -> deterministic policy checks -> updated attention.**
   for this follow-up: deploy the backend and resync its Inngest app to register
   the new cron. The broader adaptive-missions plan remains active with its
   existing unfinished implementation and verification criteria.
+- GitHub preparation requested by the user: reviewed tracked files and Git
+  history with Gitleaks 8.30.1. The only initial finding was the documented,
+  disposable OAuth RSA test fixture inside `#[cfg(test)]`; an exact-file,
+  private-key-rule exception now allows it while preserving the other checks.
+  Reviewed history and tracked snapshot scans passed. A separate local check
+  compared four sensitive values from ignored environment files against 797
+  historical blobs and the tracked working tree; none matched. No unexpected
+  tracked build output, local databases, environment files, or credential
+  folders were found. Added signing-material/database ignore patterns and
+  documented the optional scans in `docs/HOOKS.md`. No remote is configured;
+  next publication action is to add the intended GitHub remote and push `main`.
 
 ### Handoff preparation
 

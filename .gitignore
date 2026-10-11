@@ -31,3 +31,27 @@ server/dist
 *.sln
 *.sw?
 .neon
+
+# Local credentials and release signing material
+.aws/
+.ssh/
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+# Disposable OAuth unit-test keys are intentionally public fixtures.
+!native/src-tauri/src/providers/fixtures/test-rsa-private.pem
+!native/src-tauri/src/providers/fixtures/test-rsa-public.pem
+
+# Local databases and backups
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.dump

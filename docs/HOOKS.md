@@ -42,3 +42,26 @@ AGENTS.md remains the operating policy. Full verification and desktop smoke test
 remain the agent's responsibility.
 
 Configuration reference: [OpenAI hooks documentation](https://learn.chatgpt.com/docs/hooks).
+
+## Optional secret review before publishing
+
+Install Gitleaks separately, then run from the repository root:
+
+```sh
+gitleaks git --log-opts='--all --full-history -m' --redact=100
+gitleaks git --pre-commit --staged --redact=100
+```
+
+The first command checks Git history, including merge diffs; the second checks
+staged changes. These scans are separate from `pnpm verify` and are not run by
+the current Git hooks. Review untracked files and ignore rules before staging.
+Local environment files, Neon credentials, signing material, credential folders,
+databases, and build output belong outside the committed tree. Ignore rules do
+not remove files that were previously committed.
+
+The repository's [Gitleaks configuration](../.gitleaks.toml) retains the default
+rules and permits only the disposable RSA private-key fixture used inside the
+OAuth unit-test module. Other rules still scan that fixture, and the private-key
+rule remains active for other paths. These fixture keys must never be used as
+real credentials. A clean scan is evidence from known detection rules, not a
+guarantee that every possible secret has been detected.
