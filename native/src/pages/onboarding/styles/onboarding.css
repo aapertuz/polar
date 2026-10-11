@@ -1,0 +1,168 @@
+.onboarding {
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 48px 24px;
+}
+.onboarding-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.onboarding-brand > span {
+  width: 8px;
+  height: 8px;
+  background: var(--red);
+  border-radius: 50%;
+}
+.onboarding-content {
+  width: min(100%, 480px);
+  margin: auto;
+  padding: 48px 0;
+}
+.onboarding-steps {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+  margin: 0 0 32px;
+  padding: 0;
+  font: 400 12px var(--mono);
+  color: var(--secondary);
+}
+.onboarding-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.onboarding-steps li[aria-current] {
+  color: var(--ink);
+}
+.onboarding-steps span {
+  border-bottom: 1px solid var(--border-light);
+  padding: 4px 0;
+}
+.onboarding-steps [aria-current] span {
+  border-color: var(--red);
+}
+.onboarding h1 {
+  font: 500 40px/1.15 var(--mono);
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+.onboarding h1:focus {
+  outline: none;
+}
+.onboarding-description {
+  margin-top: 20px;
+  color: var(--secondary);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.onboarding-start,
+.onboarding-connection {
+  margin-top: 32px;
+}
+.onboarding-start > button {
+  width: 100%;
+  justify-content: space-between;
+  min-height: 44px;
+}
+.onboarding-start > p {
+  margin-top: 12px;
+  color: var(--secondary);
+  font-size: 14px;
+}
+.onboarding-connection {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+}
+.onboarding-connection h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.onboarding-connection p,
+.onboarding-code-label {
+  color: var(--secondary);
+}
+.onboarding-code {
+  font: 500 32px var(--mono);
+  letter-spacing: 0.12em;
+}
+.onboarding-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 24px 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+.onboarding-account > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--secondary);
+}
+.onboarding-account strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+.onboarding .text-button {
+  border: 0;
+  background: transparent;
+  padding: 8px 0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  white-space: nowrap;
+}
+.onboarding-existing {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.onboarding-existing select {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.onboarding select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+.onboarding .workspace-settings-actions > button {
+  width: 100%;
+}
+.onboarding button:disabled {
+  opacity: 0.5;
+}
+.onboarding .workspace-settings-note,
+.onboarding .workspace-settings-form label {
+  font-size: 14px;
+}
+.onboarding .dark-button {
+  margin-top: 0;
+}
+.onboarding-footer {
+  font: 400 11px var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--secondary);
+}
+@media (max-width: 600px) {
+  .onboarding {
+    padding: 24px;
+  }
+  .onboarding h1 {
+    font-size: 32px;
+  }
+  .onboarding-content {
+    padding: 32px 0;
+  }
+}

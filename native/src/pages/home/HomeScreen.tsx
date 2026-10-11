@@ -77,7 +77,7 @@ export function HomeScreen({ account }: { account: ReturnType<typeof usePolarAcc
                 authenticated={account.status.authenticated}
                 onRetry={model.refreshMissions}
                 onCreateWorkspace={model.openWorkspaceCreate}
-                onOpenSettings={model.openWorkspaceSettings}
+                onOpenSettings={model.openAccountSettings}
               />
             )}
             {showTimeline && (

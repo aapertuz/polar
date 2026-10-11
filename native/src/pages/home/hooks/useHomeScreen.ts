@@ -205,6 +205,7 @@ export function useHomeScreen(account: AccountModel) {
     () => overlay.open({ kind: "workspace-settings" }),
     [overlay.open],
   );
+  const openAccountSettings = useCallback(() => overlay.open({ kind: "settings" }), [overlay.open]);
   const openWorkspaceCreate = useCallback(
     () => overlay.open({ kind: "workspace-create" }),
     [overlay.open],
@@ -236,6 +237,7 @@ export function useHomeScreen(account: AccountModel) {
     openQuickAiNewMission,
     openWorkspaceSettingsFromQuickAi,
     openWorkspaceSettings,
+    openAccountSettings,
     openWorkspaceCreate,
     selectWorkspace,
     workspaceSettings,
