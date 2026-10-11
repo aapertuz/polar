@@ -19,11 +19,12 @@ live authentication/database tests must use development.
 | `pnpm test:frontend-check` | Regression fixtures prove the frontend checker rejects prohibited patterns and permits render-only JSX |
 | `pnpm check` | Oxfmt check, Oxlint, documentation and frontend checks, checker regression tests, and TypeScript checks for native and server |
 | `pnpm build` | Native production frontend and compiled server; no desktop installer |
+| `pnpm build bundle` | Production macOS DMG using `native/production.json` and ad-hoc signing; no notarization |
 | `pnpm check:rust` | Rust formatting and locked dependency compilation at `native/src-tauri/Cargo.toml` |
 | `pnpm test:rust` | Rust tests using `native/src-tauri/Cargo.lock` |
 | `pnpm --filter @polar/native test` | Desktop window bounds, resize recovery, reduced-motion policy, and frontend import-boundary checks |
 | `pnpm --filter @polar/server test` | Fastify health response and server configuration tests |
-| `pnpm test:environments` | Credential-file selection, test isolation, and desktop development configuration |
+| `pnpm test:environments` | Credential-file selection, test isolation, and desktop development/production build configuration |
 | `pnpm --filter @polar/server test:integration` | Live development Neon authentication, device approval, bootstrap, and revocation with temporary-account cleanup |
 | `pnpm verify` | Oxfmt, Oxlint, documentation, both package builds, native UI geometry/motion/import-boundary tests, Rust checks/tests, and server tests |
 | `pnpm dev:native` | Interactive desktop validation, including Vite and Rust command behavior |

@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { desktopDevelopmentEnvironment, loadEnvironment } from "./environment.mjs";
+import {
+  desktopDevelopmentEnvironment,
+  desktopProductionEnvironment,
+  loadEnvironment,
+} from "./environment.mjs";
 
 test("local commands replace inherited production credentials with the scoped development file", () => {
   const directory = mkdtempSync(join(tmpdir(), "polar-environments-"));
@@ -71,6 +75,91 @@ test("missing development file never falls back to production or legacy credenti
     assert.throws(() => loadEnvironment("staging", {}, directory), /environment mode/);
     writeFileSync(join(directory, ".env.development.local"), "POLAR_ENV=production\n");
     assert.throws(() => loadEnvironment("development", {}, directory), /does not match/);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("desktop production builds use public configuration and discard inherited server and Apple credentials", () => {
+  const directory = mkdtempSync(join(tmpdir(), "polar-desktop-production-"));
+  try {
+    mkdirSync(join(directory, "native"));
+    writeFileSync(
+      join(directory, "native/production.json"),
+      JSON.stringify({
+        apiBaseUrl: "https://polar.example.test",
+        desktopClientId: "com.example.polar",
+      }),
+    );
+    // A desktop-only build must not parse or depend on either server credential file.
+    writeFileSync(join(directory, ".env.production.local"), "POLAR_ENV=development\n");
+    writeFileSync(join(directory, ".env.development.local"), "BETTER_AUTH_SECRET=file-secret\n");
+    const inherited = {
+      PATH: "/bin",
+      POLAR_ENV: "development",
+      NODE_ENV: "test",
+      POLAR_API_BASE_URL: "http://localhost:3000",
+      POLAR_DESKTOP_CLIENT_ID: "com.example.polar.development",
+      DATABASE_URL: "ambient-db",
+      DATABASE_URL_UNPOOLED: "ambient-direct",
+      BETTER_AUTH_SECRET: "ambient-secret",
+      INNGEST_EVENT_KEY: "ambient-event",
+      INNGEST_SIGNING_KEY: "ambient-signing",
+      APPLE_ID: "ambient-apple-id",
+      APPLE_PASSWORD: "ambient-apple-password",
+      APPLE_CERTIFICATE: "ambient-certificate",
+      APPLE_SIGNING_IDENTITY: "Developer ID Application",
+    };
+    const result = desktopProductionEnvironment(inherited, directory);
+    assert.equal(result.POLAR_ENV, "production");
+    assert.equal(result.NODE_ENV, "production");
+    assert.equal(result.POLAR_API_BASE_URL, "https://polar.example.test");
+    assert.equal(result.POLAR_DESKTOP_CLIENT_ID, "com.example.polar");
+    assert.equal(result.APPLE_SIGNING_IDENTITY, "-");
+    assert.equal(result.PATH, "/bin");
+    for (const key of [
+      "DATABASE_URL",
+      "DATABASE_URL_UNPOOLED",
+      "BETTER_AUTH_SECRET",
+      "INNGEST_EVENT_KEY",
+      "INNGEST_SIGNING_KEY",
+      "APPLE_ID",
+      "APPLE_PASSWORD",
+      "APPLE_CERTIFICATE",
+    ])
+      assert.equal(result[key], undefined, key);
+    assert.equal(inherited.POLAR_ENV, "development");
+    assert.equal(inherited.BETTER_AUTH_SECRET, "ambient-secret");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("desktop production configuration rejects insecure origins and invalid client identities before building", () => {
+  const directory = mkdtempSync(join(tmpdir(), "polar-desktop-production-"));
+  try {
+    mkdirSync(join(directory, "native"));
+    for (const apiBaseUrl of [
+      "http://polar.example.test",
+      "https://user:password@polar.example.test",
+      "https://polar.example.test/api/auth",
+      "https://polar.example.test?secret=value",
+      "https://polar.example.test#fragment",
+    ]) {
+      writeFileSync(
+        join(directory, "native/production.json"),
+        JSON.stringify({ apiBaseUrl, desktopClientId: "com.example.polar" }),
+      );
+      assert.throws(() => desktopProductionEnvironment({}, directory), /HTTPS origin/);
+    }
+    writeFileSync(
+      join(directory, "native/production.json"),
+      JSON.stringify({
+        apiBaseUrl: "https://polar.example.test",
+        desktopClientId: "invalid client",
+      }),
+    );
+    assert.throws(() => desktopProductionEnvironment({}, directory), /public client identifier/);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

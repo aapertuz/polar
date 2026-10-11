@@ -57,6 +57,48 @@ export function desktopDevelopmentEnvironment(inherited = process.env, directory
   return result;
 }
 
+export function desktopProductionEnvironment(inherited = process.env, directory = root) {
+  const config = JSON.parse(readFileSync(join(directory, "native/production.json"), "utf8"));
+  const url = new URL(config.apiBaseUrl);
+  if (
+    url.protocol !== "https:" ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error("Desktop production apiBaseUrl must be a public HTTPS origin.");
+  }
+  if (
+    typeof config.desktopClientId !== "string" ||
+    !/^[a-zA-Z0-9._:-]{3,100}$/.test(config.desktopClientId)
+  ) {
+    throw new Error("Desktop production desktopClientId must be a valid public client identifier.");
+  }
+  const result = { ...inherited };
+  for (const key of [
+    ...scopedKeys,
+    "INNGEST_EVENT_KEY",
+    "INNGEST_SIGNING_KEY",
+    "APPLE_CERTIFICATE",
+    "APPLE_CERTIFICATE_PASSWORD",
+    "APPLE_ID",
+    "APPLE_PASSWORD",
+    "APPLE_TEAM_ID",
+    "APPLE_API_KEY",
+    "APPLE_API_ISSUER",
+    "APPLE_API_KEY_PATH",
+  ])
+    delete result[key];
+  result.NODE_ENV = "production";
+  result.POLAR_ENV = "production";
+  result.POLAR_API_BASE_URL = url.origin;
+  result.POLAR_DESKTOP_CLIENT_ID = config.desktopClientId;
+  result.APPLE_SIGNING_IDENTITY = "-";
+  return result;
+}
+
 async function run() {
   const [mode, command, ...args] = process.argv.slice(2);
   if (!command) throw new Error("Usage: environment.mjs <mode> <command> [args...]");

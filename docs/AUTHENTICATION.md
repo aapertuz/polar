@@ -58,10 +58,18 @@ Release desktop builds default to production and require an explicit HTTPS
 matching public `POLAR_DESKTOP_CLIENT_ID` when building. These values are public,
 embedded settings, not secrets; Cargo rebuilds when they change.
 
+For a production macOS installer, run `pnpm build bundle` at the repository root.
+The command reads only the public backend origin and client ID from
+[`native/production.json`](../native/production.json), strips inherited server
+credentials, and supplies the release settings automatically. It uses ad-hoc
+signing without Apple notarization and writes the DMG under
+`native/src-tauri/target/release/bundle/dmg/`. Update the public configuration
+when changing the production backend; no Better Auth secret is needed to build.
+
 `pnpm --filter @polar/server start` explicitly selects production; use
 `start:development` to run the compiled server locally. Production's database
-is configured, but its canonical HTTPS `BETTER_AUTH_URL` remains unset and must
-be provisioned before starting production authentication.
+is configured; provision its canonical HTTPS `BETTER_AUTH_URL` in the server
+deployment environment, matching the public desktop production origin.
 
 ## Database setup
 

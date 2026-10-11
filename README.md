@@ -46,8 +46,17 @@ pnpm check       # documentation and both TypeScript packages
 pnpm check:rust  # Rust format and compile checks
 pnpm test:rust   # Rust tests
 pnpm build       # native frontend and compiled server; no desktop installer
+pnpm build bundle # production macOS DMG with the configured logo and backend
 pnpm verify      # full repository verification, including server tests
 ```
+
+Run `pnpm build bundle` on a Mac to create the production installer in
+`native/src-tauri/target/release/bundle/dmg/`. It uses the public backend origin
+and desktop client ID in [`native/production.json`](native/production.json),
+including the Railway origin configured for Polar. Edit that file when changing
+the production backend. The command uses ad-hoc signing without an Apple
+Developer certificate or notarization; macOS may require Open Anyway for a
+downloaded app. Server credential files are not loaded for desktop packaging.
 
 ## Server production commands
 
