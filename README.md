@@ -58,6 +58,16 @@ the production backend. The command uses ad-hoc signing without an Apple
 Developer certificate or notarization; macOS may require Open Anyway for a
 downloaded app. Server credential files are not loaded for desktop packaging.
 
+## Downloads
+
+Versioned macOS installers are published on the GitHub
+[Releases](https://github.com/aapertuz/polar/releases) page. To publish a
+release, update the root `package.json` and `native/src-tauri/tauri.conf.json`
+versions to the same value, commit and push those changes, then push a matching
+`v` tag (for example, `v0.1.0`). The release workflow builds the production DMG
+on macOS and attaches it to the GitHub Release. Releases currently contain a
+macOS DMG only; the app is ad-hoc signed and not notarized.
+
 ## Server production commands
 
 ```sh
